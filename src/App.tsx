@@ -13,6 +13,12 @@ import { OfficeLocator } from './pages/OfficeLocator';
 import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
 import { Profile } from './pages/Profile';
+import { PrivacyPolicy } from './pages/PrivacyPolicy';
+import { TermsOfUse } from './pages/TermsOfUse';
+import { Feedback } from './pages/Feedback';
+import { About } from './pages/About';
+import { FAQ } from './pages/FAQ';
+import { Contact } from './pages/Contact';
 
 export const App: React.FC = () => {
   return (
@@ -52,6 +58,12 @@ export const App: React.FC = () => {
             <Route path="offices/:serviceId" element={<OfficeLocator />} />
             <Route path="login" element={<Login />} />
             <Route path="signup" element={<Signup />} />
+            <Route path="privacy" element={<PrivacyPolicy />} />
+            <Route path="terms" element={<TermsOfUse />} />
+            <Route path="feedback" element={<Feedback />} />
+            <Route path="about" element={<About />} />
+            <Route path="faq" element={<FAQ />} />
+            <Route path="contact" element={<Contact />} />
           </Route>
         </Routes>
       </BrowserRouter>

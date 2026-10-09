@@ -117,7 +117,9 @@ export const Home: React.FC = () => {
       </section>
 
       {/* 4. Civic Alerts Sliding Banner */}
-      <CivicAlerts />
+      <div id="civic-alerts">
+        <CivicAlerts />
+      </div>
 
       {/* 5. Nearby Seva Kendras Map Section */}
       <NearbySevaKendras />
