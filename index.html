@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SevaGuide</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script>
+      (function() {
+        try {
+          // Pre-render theme application to avoid FOUC
+          var theme = localStorage.getItem('sevaguide_theme');
+          var isDark = false;
+          if (theme === 'dark') {
+            isDark = true;
+          } else if (theme === 'system' || !theme) {
+            isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          }
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.style.colorScheme = 'dark';
+          } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.style.colorScheme = 'light';
+          }
+
+          // Pre-render accessibility magnification
+          var m = localStorage.getItem('sevaguide_magnification');
+          if (m) {
+            var val = parseInt(m, 10);
+            if (val >= 80 && val <= 150) {
+              document.documentElement.style.fontSize = val + '%';
+              document.documentElement.style.setProperty('--app-magnification', val + '%');
+            }
+          }
+          if (localStorage.getItem('sevaguide_high_contrast') === 'true') {
+            document.documentElement.classList.add('high-contrast');
+          }
+          if (localStorage.getItem('sevaguide_reduced_motion') === 'true') {
+            document.documentElement.classList.add('reduce-motion');
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body class="bg-slate-50 dark:bg-black text-slate-900 dark:text-slate-100 transition-colors">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base accessibility typography */
+html {
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
+  color-scheme: light;
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+body {
+  overflow-x: hidden;
+  min-width: 320px;
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+html.dark {
+  color-scheme: dark;
+  background-color: #000000 !important;
+  color: #f1f5f9;
+}
+
+html.dark body {
+  background-color: #000000 !important;
+  color: #f1f5f9;
+}
+
+html.high-contrast {
+  filter: contrast(120%);
+}
+
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Popular Services Card Pop-out Hover Effect (Part 2) */
+@media (hover: hover) and (pointer: fine) {
+  .service-card-pop {
+    transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 200ms cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform, box-shadow;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  .service-card-pop:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 12px 26px -6px rgba(30, 64, 175, 0.12),
+                0 6px 12px -4px rgba(30, 64, 175, 0.06);
+    border-color: #3b82f6; /* blue-500 */
+  }
+
+  .service-card-pop:hover .service-card-icon {
+    transform: translateX(3px);
+    transition: transform 200ms ease;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .service-card-pop,
+  .service-card-pop:hover {
+    transform: none !important;
+    transition: none !important;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1) !important;
+  }
+  .service-card-icon {
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+/* Clear keyboard focus indicator */
+.service-card-pop:focus-visible,
+.service-card-pop:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 3px;
+  border-color: #2563eb;
+}

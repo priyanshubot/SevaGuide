@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 600" fill="none">
+  <!-- Sky gradient -->
+  <defs>
+    <linearGradient id="sky-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E2E8F0" stop-opacity="0.9" />
+      <stop offset="50%" stop-color="#CBD5E1" stop-opacity="0.6" />
+      <stop offset="100%" stop-color="#F1F5F9" stop-opacity="0.3" />
+    </linearGradient>
+
+    <!-- Warm Indian Sandstone Stone Gradient -->
+    <linearGradient id="sandstone-col" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#94A3B8" stop-opacity="0.35" />
+      <stop offset="50%" stop-color="#64748B" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#94A3B8" stop-opacity="0.4" />
+    </linearGradient>
+
+    <!-- Arch fill -->
+    <linearGradient id="arch-depth" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#475569" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#64748B" stop-opacity="0.1" />
+    </linearGradient>
+
+    <linearGradient id="civic-teal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0284C7" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#059669" stop-opacity="0.2" />
+    </linearGradient>
+  </defs>
+
+  <!-- Distant Civic Skyline / Foliage -->
+  <rect width="1440" height="600" fill="url(#sky-grad)" />
+
+  <!-- Background Architecture Lines: Monumental Facade -->
+  <g opacity="0.45">
+    <!-- Main Center Colonnade Beam -->
+    <rect x="180" y="240" width="1080" height="32" rx="4" fill="url(#sandstone-col)" />
+    <rect x="220" y="215" width="1000" height="25" rx="3" fill="#64748B" fill-opacity="0.2" />
+    <!-- Pediment Arch/Crown -->
+    <path d="M 640 215 C 680 140 760 140 800 215 Z" fill="url(#civic-teal)" />
+    <!-- Center Civic Dome / Cupola -->
+    <path d="M 670 140 C 690 90 750 90 770 140 Z" fill="#475569" fill-opacity="0.25" />
+    <line x1="720" y1="70" x2="720" y2="90" stroke="#059669" stroke-width="3" stroke-linecap="round" />
+  </g>
+
+  <!-- Symmetrical Civic Pillars (Classical Indian Administrative Portico) -->
+  <g opacity="0.4">
+    <!-- Pillar 1 -->
+    <rect x="240" y="272" width="45" height="328" rx="2" fill="url(#sandstone-col)" />
+    <rect x="235" y="272" width="55" height="12" rx="2" fill="#475569" fill-opacity="0.3" />
+    <path d="M 285 290 Q 325 290 325 350 L 325 600 L 285 600 Z" fill="url(#arch-depth)" opacity="0.4" />
+
+    <!-- Pillar 2 -->
+    <rect x="365" y="272" width="45" height="328" rx="2" fill="url(#sandstone-col)" />
+    <rect x="360" y="272" width="55" height="12" rx="2" fill="#475569" fill-opacity="0.3" />
+    <path d="M 410 290 Q 450 290 450 350 L 450 600 L 410 600 Z" fill="url(#arch-depth)" opacity="0.4" />
+
+    <!-- Pillar 3 -->
+    <rect x="490" y="272" width="45" height="328" rx="2" fill="url(#sandstone-col)" />
+    <rect x="485" y="272" width="55" height="12" rx="2" fill="#475569" fill-opacity="0.3" />
+    <path d="M 535 290 Q 575 290 575 350 L 575 600 L 535 600 Z" fill="url(#arch-depth)" opacity="0.4" />
+
+    <!-- Center Grand Archway -->
+    <rect x="615" y="272" width="50" height="328" rx="2" fill="url(#sandstone-col)" />
+    <rect x="775" y="272" width="50" height="328" rx="2" fill="url(#sandstone-col)" />
+    <path d="M 665 370 C 665 290 775 290 775 370 L 775 600 L 665 600 Z" fill="url(#arch-depth)" opacity="0.5" />
+
+    <!-- Pillar 4 -->
+    <rect x="905" y="272" width="45" height="328" rx="2" fill="url(#sandstone-col)" />
+    <rect x="900" y="272" width="55" height="12" rx="2" fill="#475569" fill-opacity="0.3" />
+    <path d="M 825 290 Q 865 290 865 350 L 865 600 L 825 600 Z" fill="url(#arch-depth)" opacity="0.4" />
+
+    <!-- Pillar 5 -->
+    <rect x="1030" y="272" width="45" height="328" rx="2" fill="url(#sandstone-col)" />
+    <rect x="1025" y="272" width="55" height="12" rx="2" fill="#475569" fill-opacity="0.3" />
+    <path d="M 950 290 Q 990 290 990 350 L 990 600 L 950 600 Z" fill="url(#arch-depth)" opacity="0.4" />
+
+    <!-- Pillar 6 -->
+    <rect x="1155" y="272" width="45" height="328" rx="2" fill="url(#sandstone-col)" />
+    <rect x="1150" y="272" width="55" height="12" rx="2" fill="#475569" fill-opacity="0.3" />
+    <path d="M 1075 290 Q 1115 290 1115 350 L 1115 600 L 1075 600 Z" fill="url(#arch-depth)" opacity="0.4" />
+  </g>
+
+  <!-- Plaza Floor Steps & Terrace Lines -->
+  <rect x="120" y="560" width="1200" height="15" fill="#475569" fill-opacity="0.2" />
+  <rect x="80" y="575" width="1280" height="25" fill="#334155" fill-opacity="0.15" />
+
+  <!-- Subtle Indian Ashoka-inspired civic geometry accent motif -->
+  <g opacity="0.18" transform="translate(1180, 60)">
+    <circle cx="100" cy="100" r="85" stroke="#1D4ED8" stroke-width="3" fill="none" />
+    <circle cx="100" cy="100" r="20" fill="#1D4ED8" />
+    <path d="M100 20 L100 180 M20 100 L180 100 M43 43 L157 157 M43 157 L157 43" stroke="#1D4ED8" stroke-width="2" />
+  </g>
+</svg>
