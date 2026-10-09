@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useLocation } from 'react-router-dom';
+import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { SERVICES_DATA } from '../data/services';
-import { ProcessSteps } from '../components/ProcessSteps';
+import { ServiceWorkflowSteps } from '../components/ServiceWorkflowSteps';
 import {
   DocumentRequirementCard,
   DocumentItemState,
@@ -37,10 +37,22 @@ import {
   HelpCircle,
 } from 'lucide-react';
 
-export const VerifyDocuments: React.FC = () => {
+interface VerifyDocumentsProps {
+  serviceIdProp?: string;
+  onBackToStep1?: () => void;
+  onContinueToStep3?: () => void;
+}
+
+export const VerifyDocuments: React.FC<VerifyDocumentsProps> = ({
+  serviceIdProp,
+  onBackToStep1,
+  onContinueToStep3,
+}) => {
   const { serviceId } = useParams<{ serviceId: string }>();
+  const navigate = useNavigate();
   const location = useLocation();
-  const service = SERVICES_DATA.find((s) => s.id === serviceId);
+  const activeServiceId = serviceIdProp || serviceId;
+  const service = SERVICES_DATA.find((s) => s.id === activeServiceId);
   const { user } = useAuth();
 
   // State map for all required document items
@@ -786,17 +798,36 @@ export const VerifyDocuments: React.FC = () => {
     })();
   const readyChecklistCount = passedChecklist ? Object.values(passedChecklist).filter(Boolean).length : 0;
 
+  const handleBack = () => {
+    if (onBackToStep1) {
+      onBackToStep1();
+    } else if (service) {
+      navigate(`/services/${service.id}?step=1`);
+    } else {
+      navigate(-1);
+    }
+  };
+
+  const handleContinue = () => {
+    if (onContinueToStep3) {
+      onContinueToStep3();
+    } else if (service) {
+      navigate(`/services/${service.id}?step=3`);
+    }
+  };
+
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
       {/* Navigation breadcrumb back to Page 1: Document Readiness Checklist */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <Link
-          to={`/services/${service.id}`}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition"
+        <button
+          type="button"
+          onClick={handleBack}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Back to Document Readiness Checklist</span>
-        </Link>
+        </button>
         {passedChecklist && (
           <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
             Step 1 Checklist:{' '}
@@ -811,17 +842,23 @@ export const VerifyDocuments: React.FC = () => {
       <div>
         <div className="flex items-center gap-2 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/70 px-3 py-1 rounded-md w-fit mb-2 border border-blue-200 dark:border-blue-900">
           <ShieldCheck className="w-3.5 h-3.5 text-blue-700 dark:text-blue-400" />
-          <span>Pre-Submission Consistency Check</span>
+          <span>Step 2 of 3: Document Verification</span>
         </div>
         <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">
-          {service.name} Document Check
+          {service.name}
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Select or upload documents to your encrypted vault. Run in-browser OCR for instant verification.
+          Upload documents to your encrypted vault and run automated consistency checks.
         </p>
       </div>
 
-      <ProcessSteps steps={service.steps} currentStepIndex={1} />
+      <ServiceWorkflowSteps
+        currentStep={2}
+        onStepClick={(step) => {
+          if (step === 1) handleBack();
+          if (step === 3) handleContinue();
+        }}
+      />
 
       {generalError && (
         <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-2xl flex items-start gap-3 text-xs text-rose-800 dark:text-rose-300">
@@ -949,6 +986,27 @@ export const VerifyDocuments: React.FC = () => {
             <p className="text-[11px] text-slate-400 dark:text-slate-500 text-center mt-2">
               Note: Automated consistency check. Image files are analyzed locally in your browser. No PII is sent to external AI servers.
             </p>
+          </div>
+
+          {/* Step Navigation Controls */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 border-t border-slate-200/80 dark:border-zinc-800">
+            <button
+              type="button"
+              onClick={handleBack}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-900 font-semibold text-xs transition cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Document Checklist</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleContinue}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm hover:shadow transition cursor-pointer"
+            >
+              <span>Continue to Step 3: Online or Offline</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
       ) : (
@@ -1236,22 +1294,22 @@ export const VerifyDocuments: React.FC = () => {
                 </button>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Link
                   to="/profile"
-                  className="inline-flex items-center gap-1.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold px-5 py-2.5 rounded-xl text-xs transition shadow-sm"
-                >
-                  <span>View in My Documents</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-
-                <Link
-                  to={`/offices/${service.id}`}
                   className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-slate-800 dark:text-slate-200 font-semibold px-4 py-2.5 rounded-xl text-xs border border-transparent dark:border-zinc-800 transition"
                 >
-                  <span>Find Facilitation Office</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <span>My Documents</span>
                 </Link>
+
+                <button
+                  type="button"
+                  onClick={handleContinue}
+                  className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition shadow-sm cursor-pointer"
+                >
+                  <span>Continue to Step 3: Online or Offline</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
           </div>

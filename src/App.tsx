@@ -7,7 +7,6 @@ import { MainLayout } from './layouts/MainLayout';
 import { Home } from './pages/Home';
 import { Services } from './pages/Services';
 import { ServiceDetails } from './pages/ServiceDetails';
-import { VerifyDocuments } from './pages/VerifyDocuments';
 import { Applications } from './pages/Applications';
 import { OfficeLocator } from './pages/OfficeLocator';
 import { Login } from './pages/Login';
@@ -26,11 +25,7 @@ export const App: React.FC = () => {
             <Route path="services/:serviceId" element={<ServiceDetails />} />
             <Route
               path="verify/:serviceId"
-              element={
-                <AuthGuard>
-                  <VerifyDocuments />
-                </AuthGuard>
-              }
+              element={<ServiceDetails initialStep={2} />}
             />
             <Route
               path="applications"
