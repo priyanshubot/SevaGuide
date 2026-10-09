@@ -13,26 +13,26 @@ export interface CivicAlert {
 const DEMO_CIVIC_ALERTS: CivicAlert[] = [
   {
     id: 'alert-1',
-    category: 'Aadhaar Facilitation',
+    category: 'Aadhaar',
     severity: 'Advisory',
-    title: 'Document Update Recommendation',
-    description: 'UIDAI recommends citizens periodically verify proof of identity and address documents in their records to avoid mismatch issues.',
+    title: 'UIDAI Document Update',
+    description: 'Verify identity and address proofs periodically to ensure Aadhaar records remain current.',
     tag: 'Demo Data',
   },
   {
     id: 'alert-2',
     category: 'PAN Service',
     severity: 'Important',
-    title: 'Pre-Correction Verification Notice',
-    description: 'Ensure exact spelling matches across POI documents prior to submitting PAN correction requests to avoid form return.',
+    title: 'Spelling Match Verification',
+    description: 'Confirm exact name spelling across POI documents before submitting PAN correction requests.',
     tag: 'Demo Data',
   },
   {
     id: 'alert-3',
     category: 'Passport Seva',
     severity: 'Update',
-    title: 'Appointment Token Guidance',
-    description: 'Regional PSK centers require pre-scheduled appointment confirmations. Physical walk-in tokens remain subject to center availability.',
+    title: 'Pre-Scheduled PSK Tokens',
+    description: 'Regional PSK centers require pre-scheduled online appointments; walk-in slots are limited.',
     tag: 'Demo Data',
   },
 ];
@@ -146,14 +146,11 @@ export const CivicAlerts: React.FC = () => {
 
       {/* Slide Content */}
       <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-200/80 dark:border-zinc-800 space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            {getSeverityBadge(current.severity)}
-            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-zinc-800 px-2 py-0.5 rounded border border-slate-200 dark:border-zinc-700">
-              {current.category}
-            </span>
-          </div>
-          <span className="text-[11px] text-slate-400 dark:text-slate-500">Notice #{currentIndex + 1}</span>
+        <div className="flex items-center gap-2">
+          {getSeverityBadge(current.severity)}
+          <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-zinc-800 px-2 py-0.5 rounded border border-slate-200 dark:border-zinc-700">
+            {current.category}
+          </span>
         </div>
 
         <h3 className="text-sm font-bold text-slate-900 dark:text-white">{current.title}</h3>

@@ -41,7 +41,7 @@ export const NearbySevaKendras: React.FC = () => {
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Locate official facilitation centers and check operating hours before visiting.
+            Locate facilitation centers, opening hours, and distance.
           </p>
         </div>
 

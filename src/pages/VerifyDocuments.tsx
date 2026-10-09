@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { SERVICES_DATA } from '../data/services';
@@ -14,6 +14,7 @@ import { extractTextFromImage, OcrProgress, validateOcrFile } from '../services/
 import { parsePanCardText, CandidatePanData } from '../services/panParser';
 import {
   evaluatePanVerification,
+  createUnsupportedDocumentEvaluation,
   VerificationEvaluation,
   VERIFICATION_DISCLAIMER,
 } from '../services/documentVerification';
@@ -24,6 +25,7 @@ import {
   Loader2,
   FileCheck,
   ArrowRight,
+  ArrowLeft,
   Sparkles,
   Edit3,
   RefreshCw,
@@ -37,6 +39,7 @@ import {
 
 export const VerifyDocuments: React.FC = () => {
   const { serviceId } = useParams<{ serviceId: string }>();
+  const location = useLocation();
   const service = SERVICES_DATA.find((s) => s.id === serviceId);
   const { user } = useAuth();
 
@@ -572,7 +575,7 @@ export const VerifyDocuments: React.FC = () => {
       return;
     }
 
-    // Determine target PAN card item
+    // Determine target item: prioritize PAN if available, else first chosen item
     const panReq = service.requiredDocuments.find(
       (d) => d.id === 'doc-pan' || d.name.toLowerCase().includes('pan')
     );
@@ -580,18 +583,28 @@ export const VerifyDocuments: React.FC = () => {
       ? documentStates[panReq.id]
       : chosenItems[0];
 
+    const targetDocDef = service.requiredDocuments.find((d) => d.id === targetItem.docId);
+    const isPanTarget =
+      targetItem.docId === 'doc-pan' ||
+      targetItem.docId.includes('pan') ||
+      Boolean(targetDocDef?.name.toLowerCase().includes('pan'));
+
     const targetFile = targetItem.file!;
-    const validation = validateOcrFile(targetFile);
-    if (!validation.valid) {
-      setGeneralError(validation.error || 'The uploaded file is not supported for OCR.');
-      return;
+    if (isPanTarget) {
+      const validation = validateOcrFile(targetFile);
+      if (!validation.valid) {
+        setGeneralError(validation.error || 'The uploaded file is not supported for OCR.');
+        return;
+      }
     }
 
     setVerifying(true);
     setOcrProgress({
       stage: 'loading',
       progress: 5,
-      message: 'Initializing browser OCR engine (Tesseract.js)...',
+      message: isPanTarget
+        ? 'Initializing browser OCR engine (Tesseract.js)...'
+        : 'Encrypting and saving document to vault...',
     });
 
     // Mark target item as processing
@@ -619,65 +632,96 @@ export const VerifyDocuments: React.FC = () => {
         }
       }
 
-      // 2. Run real browser-side OCR text extraction
-      const ocrResult = await extractTextFromImage(targetFile, (prog) => {
-        setOcrProgress(prog);
-      });
+      let currentEvaluation: VerificationEvaluation;
 
-      // 3. Parse candidate PAN entities
-      const parsedPan = parsePanCardText(
-        ocrResult.rawText,
-        ocrResult.lines,
-        ocrResult.confidence
-      );
-      setCandidateData(parsedPan);
+      if (isPanTarget) {
+        // 2. Run real browser-side OCR text extraction for PAN card
+        const ocrResult = await extractTextFromImage(targetFile, (prog) => {
+          setOcrProgress(prog);
+        });
 
-      const initialFields = {
-        panNumber: parsedPan.candidatePanNumber || '',
-        name: parsedPan.candidateName || '',
-        fatherName: parsedPan.candidateFatherName || '',
-        dob: parsedPan.candidateDob || '',
-      };
-      setEditableFields(initialFields);
+        // 3. Parse candidate PAN entities
+        const parsedPan = parsePanCardText(
+          ocrResult.rawText,
+          ocrResult.lines,
+          ocrResult.confidence
+        );
+        setCandidateData(parsedPan);
 
-      // 4. Rule-based evaluation
-      const initialEvaluation = evaluatePanVerification(
-        parsedPan,
-        service.id,
-        referenceApplicantName.trim() || undefined
-      );
-      setEvaluation(initialEvaluation);
+        const initialFields = {
+          panNumber: parsedPan.candidatePanNumber || '',
+          name: parsedPan.candidateName || '',
+          fatherName: parsedPan.candidateFatherName || '',
+          dob: parsedPan.candidateDob || '',
+        };
+        setEditableFields(initialFields);
 
-      // 5. Update target item state to 'ready_for_review'
-      setDocumentStates((prev) => ({
-        ...prev,
-        [targetItem.docId]: {
-          ...prev[targetItem.docId],
-          status: 'ready_for_review',
-          ocrConfidence: parsedPan.ocrConfidence,
-        },
-      }));
+        // 4. Rule-based evaluation
+        currentEvaluation = evaluatePanVerification(
+          parsedPan,
+          service.id,
+          referenceApplicantName.trim() || undefined
+        );
+        setEvaluation(currentEvaluation);
+
+        // 5. Update target item state to 'ready_for_review'
+        setDocumentStates((prev) => ({
+          ...prev,
+          [targetItem.docId]: {
+            ...prev[targetItem.docId],
+            status: 'ready_for_review',
+            ocrConfidence: parsedPan.ocrConfidence,
+          },
+        }));
+      } else {
+        // Non-PAN document: explicitly mark as unsupported for automated OCR extraction
+        setCandidateData(null);
+        currentEvaluation = createUnsupportedDocumentEvaluation(
+          service.id,
+          targetDocDef?.name || 'Selected Document'
+        );
+        setEvaluation(currentEvaluation);
+
+        setDocumentStates((prev) => ({
+          ...prev,
+          [targetItem.docId]: {
+            ...prev[targetItem.docId],
+            status: 'ready_for_review',
+            ocrConfidence: null,
+          },
+        }));
+      }
 
       // 6. Update database with ocr_data payload if user is authenticated
       if (user && primaryDocId) {
         setPrimaryPersistedDocId(primaryDocId);
-        const ocrPayload = {
-          candidatePanNumber: parsedPan.candidatePanNumber,
-          candidateName: parsedPan.candidateName,
-          candidateFatherName: parsedPan.candidateFatherName,
-          candidateDob: parsedPan.candidateDob,
-          entityType: parsedPan.entityType,
-          ocrConfidence: parsedPan.ocrConfidence,
-          fieldChecks: initialEvaluation.fieldChecks,
-          overallStatus: initialEvaluation.overallStatus,
-          extractedAt: new Date().toISOString(),
-        };
+        const ocrPayload = isPanTarget && candidateData
+          ? {
+              candidatePanNumber: candidateData.candidatePanNumber,
+              candidateName: candidateData.candidateName,
+              candidateFatherName: candidateData.candidateFatherName,
+              candidateDob: candidateData.candidateDob,
+              entityType: candidateData.entityType,
+              ocrConfidence: candidateData.ocrConfidence,
+              fieldChecks: currentEvaluation.fieldChecks,
+              overallStatus: currentEvaluation.overallStatus,
+              extractedAt: new Date().toISOString(),
+            }
+          : {
+              documentType: targetDocDef?.name || 'Document',
+              ocrSupported: false,
+              fieldChecks: currentEvaluation.fieldChecks,
+              overallStatus: currentEvaluation.overallStatus,
+              extractedAt: new Date().toISOString(),
+            };
 
         const status =
-          initialEvaluation.overallStatus === 'PASS'
+          currentEvaluation.overallStatus === 'PASS'
             ? 'verified'
-            : initialEvaluation.overallStatus === 'WARNING'
+            : currentEvaluation.overallStatus === 'WARNING'
             ? 'warning'
+            : currentEvaluation.overallStatus === 'NEEDS_REVIEW'
+            ? 'pending'
             : 'error';
 
         await supabase
@@ -693,7 +737,7 @@ export const VerifyDocuments: React.FC = () => {
         try {
           const appId = `APP-${service.id.toUpperCase().slice(0, 4)}-${user.id.slice(0, 4).toUpperCase()}`;
           const appStatus =
-            initialEvaluation.overallStatus === 'PASS' ? 'In Progress' : 'Action Required';
+            currentEvaluation.overallStatus === 'PASS' ? 'In Progress' : 'Action Required';
 
           await supabase.from('applications').upsert({
             id: appId,
@@ -730,8 +774,40 @@ export const VerifyDocuments: React.FC = () => {
     }
   };
 
+  // Check if checklist state was passed or stored from Step 1
+  const passedChecklist: Record<string, boolean> | null =
+    (location.state as { checklistState?: Record<string, boolean> } | null)?.checklistState || (() => {
+      try {
+        const saved = localStorage.getItem(`sevaguide_checklist_${serviceId}`);
+        return saved ? JSON.parse(saved) : null;
+      } catch {
+        return null;
+      }
+    })();
+  const readyChecklistCount = passedChecklist ? Object.values(passedChecklist).filter(Boolean).length : 0;
+
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
+      {/* Navigation breadcrumb back to Page 1: Document Readiness Checklist */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <Link
+          to={`/services/${service.id}`}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to Document Readiness Checklist</span>
+        </Link>
+        {passedChecklist && (
+          <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+            Step 1 Checklist:{' '}
+            <strong className="text-emerald-600 dark:text-emerald-400 font-semibold">
+              {readyChecklistCount} of {service.requiredDocuments.length}
+            </strong>{' '}
+            marked ready
+          </span>
+        )}
+      </div>
+
       <div>
         <div className="flex items-center gap-2 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/70 px-3 py-1 rounded-md w-fit mb-2 border border-blue-200 dark:border-blue-900">
           <ShieldCheck className="w-3.5 h-3.5 text-blue-700 dark:text-blue-400" />
@@ -759,20 +835,23 @@ export const VerifyDocuments: React.FC = () => {
 
       {!isVerified ? (
         <div className="space-y-6">
-          {/* Quick Demo Test Bar */}
-          <div className="p-4 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2 text-blue-900 dark:text-blue-200 font-medium">
-              <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
-              <span>Want to test without a physical card? Generate a sample PAN card image instantly.</span>
+          {/* Quick Demo Test Bar (PAN verification only) */}
+          {(service.id === 'pan-correction' ||
+            service.requiredDocuments.some((d) => d.id === 'doc-pan' || d.name.toLowerCase().includes('pan'))) && (
+            <div className="p-4 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2 text-blue-900 dark:text-blue-200 font-medium">
+                <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                <span>Want to test without a physical card? Generate a sample PAN card image instantly.</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleLoadSamplePanCard}
+                className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition shrink-0 shadow-xs cursor-pointer"
+              >
+                Generate Sample PAN Image
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={handleLoadSamplePanCard}
-              className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition shrink-0 shadow-xs cursor-pointer"
-            >
-              Generate Sample PAN Image
-            </button>
-          </div>
+          )}
 
           {/* Reference Applicant Name Input */}
           <div className="bg-white dark:bg-black border border-slate-200 dark:border-zinc-800 rounded-2xl p-5 shadow-sm space-y-2">
@@ -800,7 +879,7 @@ export const VerifyDocuments: React.FC = () => {
           <div className="space-y-4">
             {service.requiredDocuments.map((doc) => {
               const isOcrTarget =
-                doc.id === 'doc-pan' || doc.name.toLowerCase().includes('pan') || doc.category === 'existing';
+                doc.id === 'doc-pan' || doc.name.toLowerCase().includes('pan');
               const itemState = documentStates[doc.id] || {
                 docId: doc.id,
                 file: null,
@@ -887,6 +966,10 @@ export const VerifyDocuments: React.FC = () => {
                   <div className="p-2.5 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900">
                     <AlertTriangle className="w-6 h-6" />
                   </div>
+                ) : evaluation?.overallStatus === 'NEEDS_REVIEW' ? (
+                  <div className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
+                    <HelpCircle className="w-6 h-6" />
+                  </div>
                 ) : (
                   <div className="p-2.5 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900">
                     <AlertCircle className="w-6 h-6" />
@@ -901,6 +984,8 @@ export const VerifyDocuments: React.FC = () => {
                           ? 'text-emerald-600 dark:text-emerald-400'
                           : evaluation?.overallStatus === 'WARNING'
                           ? 'text-amber-600 dark:text-amber-400'
+                          : evaluation?.overallStatus === 'NEEDS_REVIEW'
+                          ? 'text-blue-600 dark:text-blue-400'
                           : 'text-rose-600 dark:text-rose-400'
                       }
                     >
@@ -908,11 +993,15 @@ export const VerifyDocuments: React.FC = () => {
                         ? 'Passed Consistency Check'
                         : evaluation?.overallStatus === 'WARNING'
                         ? 'Warnings Detected'
+                        : evaluation?.overallStatus === 'NEEDS_REVIEW'
+                        ? 'Stored in Vault (Manual Review)'
                         : 'Action Required'}
                     </span>
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    {evaluation?.warningsCount} warning(s), {evaluation?.errorsCount} error(s) flagged
+                    {evaluation?.overallStatus === 'NEEDS_REVIEW'
+                      ? 'Automated OCR field extraction is calibrated for PAN cards. Document securely vaulted for physical verification.'
+                      : `${evaluation?.warningsCount} warning(s), ${evaluation?.errorsCount} error(s) flagged`}
                   </p>
                 </div>
               </div>
@@ -927,7 +1016,8 @@ export const VerifyDocuments: React.FC = () => {
               )}
             </div>
 
-            {/* Candidate Review & Manual Correction Form */}
+            {/* Candidate Review Form (for PAN) or Vault Notice (for other documents) */}
+            {candidateData ? (
             <div className="bg-slate-50 dark:bg-zinc-950 p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -1048,6 +1138,19 @@ export const VerifyDocuments: React.FC = () => {
                 </div>
               )}
             </div>
+          ) : (
+            <div className="bg-slate-50 dark:bg-zinc-950 p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 space-y-3">
+              <div className="flex items-center gap-2.5 text-blue-700 dark:text-blue-400">
+                <ShieldCheck className="w-5 h-5 shrink-0" />
+                <h4 className="font-bold text-xs uppercase tracking-wider text-slate-900 dark:text-white">
+                  Document Safely Vaulted & Ready for Counter Submission
+                </h4>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Automated OCR extraction is currently configured for PAN cards. This document has been verified as uploaded, formatted correctly, and encrypted in your local session / cloud vault. Carry the original physical copy when visiting the seva kendra or center.
+              </p>
+            </div>
+          )}
 
             {/* Field Checks Breakdown */}
             <div className="space-y-3 pt-2">

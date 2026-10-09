@@ -20,10 +20,10 @@ export const Footer: React.FC = () => {
         </div>
 
         {/* Official Guidance Disclaimer (Retained) */}
-        <div className="bg-white dark:bg-zinc-900/80 border border-slate-200 dark:border-zinc-800 rounded-xl p-4 flex items-start gap-3 text-xs text-slate-700 dark:text-slate-300">
-          <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+        <div className="bg-white dark:bg-zinc-900/80 border border-slate-200 dark:border-zinc-800 rounded-xl p-3 sm:p-4 flex items-center gap-3 text-xs text-slate-700 dark:text-slate-300">
+          <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
           <p>
-            <strong>Official Guidance Disclaimer:</strong> SevaGuide provides pre-submission verification and informational guidance based on available public guidelines. Always confirm current rules, official fees, and eligibility requirements directly with relevant authorized government authorities.
+            <strong>Official Guidance Disclaimer:</strong> SevaGuide provides pre-submission guidance; always verify current rules and fees directly with official government authorities.
           </p>
         </div>
 

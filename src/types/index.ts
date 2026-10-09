@@ -3,7 +3,16 @@ export interface DocumentRequirement {
   name: string;
   description: string;
   required: boolean;
-  category: 'identity' | 'address' | 'photo' | 'existing';
+  category: string;
+  isConditional?: boolean;
+  conditionNote?: string;
+  acceptedExamples?: string[];
+}
+
+export interface ServiceStepDetail {
+  step: number;
+  title: string;
+  description: string;
 }
 
 export interface Service {
@@ -15,6 +24,19 @@ export interface Service {
   processingTime: string;
   requiredDocuments: DocumentRequirement[];
   steps: string[];
+  stepDetails?: ServiceStepDetail[];
+  eligibilitySummary?: string[];
+  conditionalNotice?: string;
+  officialPortalUrl?: string;
+  officialPortalName?: string;
+  officeAssistanceInfo?: string;
+  importantNotes?: string[];
+  disclaimer?: string;
+  hasConditionalDocs?: boolean;
+  isPopular?: boolean;
+  shortDescription?: string;
+  conciseFee?: string;
+  conciseProcessingTime?: string;
 }
 
 export interface VerificationFieldCheck {

@@ -4,12 +4,22 @@ import { SERVICES_DATA } from '../data/services';
 import { ServiceCard } from '../components/ServiceCard';
 import { CivicAlerts } from '../components/CivicAlerts';
 import { NearbySevaKendras } from '../components/NearbySevaKendras';
-import { ShieldCheck, Search, FileSpreadsheet, MapPin, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+
+const POPULAR_SERVICE_IDS = [
+  'aadhaar-enrolment',
+  'aadhaar-update',
+  'passport-application',
+];
 
 export const Home: React.FC = () => {
   const { user } = useAuth();
   const getStartedRoute = user ? '/profile' : '/login';
+
+  const popularServices = POPULAR_SERVICE_IDS.map((id) =>
+    SERVICES_DATA.find((s) => s.id === id)
+  ).filter((s): s is NonNullable<typeof s> => Boolean(s));
 
   return (
     <div className="space-y-12">
@@ -35,7 +45,7 @@ export const Home: React.FC = () => {
         />
 
         {/* Content Container */}
-        <div className="relative z-10 p-8 sm:p-12 space-y-6">
+        <div className="relative z-10 p-8 sm:p-12">
           <div className="max-w-2xl space-y-5">
             <span className="inline-flex items-center gap-1.5 bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 text-xs font-semibold px-3 py-1 rounded-md uppercase tracking-wider shadow-2xs">
               <span>Citizen Guidance Platform</span>
@@ -43,6 +53,9 @@ export const Home: React.FC = () => {
             <h1 className="text-3xl sm:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
               Government services, without the confusion.
             </h1>
+            <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-xl">
+              Check document requirements, verify paperwork readiness, and find authorized seva kendras.
+            </p>
             <div className="flex flex-wrap gap-4 pt-2">
               <Link
                 to={getStartedRoute}
@@ -57,37 +70,6 @@ export const Home: React.FC = () => {
               >
                 Explore Services
               </Link>
-            </div>
-          </div>
-
-          {/* Feature quick pillars */}
-          <div
-            id="how-it-works"
-            className="pt-8 border-t border-slate-200/80 dark:border-slate-800/80 grid grid-cols-2 md:grid-cols-4 gap-4"
-          >
-            <div className="flex items-center gap-2.5 text-slate-700 dark:text-slate-300">
-              <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-400 shrink-0 border border-blue-100 dark:border-blue-900/40">
-                <Search className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-semibold">Know Requirements</span>
-            </div>
-            <div className="flex items-center gap-2.5 text-slate-700 dark:text-slate-300">
-              <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 shrink-0 border border-emerald-100 dark:border-emerald-900/40">
-                <ShieldCheck className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-semibold">Verify Documents</span>
-            </div>
-            <div className="flex items-center gap-2.5 text-slate-700 dark:text-slate-300">
-              <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-400 shrink-0 border border-blue-100 dark:border-blue-900/40">
-                <MapPin className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-semibold">Find Offices</span>
-            </div>
-            <div className="flex items-center gap-2.5 text-slate-700 dark:text-slate-300">
-              <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-400 shrink-0 border border-blue-100 dark:border-blue-900/40">
-                <FileSpreadsheet className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-semibold">Track Status</span>
             </div>
           </div>
         </div>
@@ -109,9 +91,9 @@ export const Home: React.FC = () => {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {SERVICES_DATA.map((service) => (
-            <ServiceCard key={service.id} service={service} />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+          {popularServices.map((service) => (
+            <ServiceCard key={service.id} service={service} compact />
           ))}
         </div>
       </section>

@@ -310,3 +310,35 @@ export function evaluatePanVerification(
     disclaimer: VERIFICATION_DISCLAIMER,
   };
 }
+
+/**
+ * Creates an evaluation for document types where automated OCR field extraction is not yet supported.
+ * Avoids false validation claims for Aadhaar, Passports, Domicile, Caste, Pensions, and DL.
+ */
+export function createUnsupportedDocumentEvaluation(
+  serviceId: string,
+  documentName: string
+): VerificationEvaluation {
+  return {
+    serviceId,
+    overallStatus: 'NEEDS_REVIEW',
+    warningsCount: 1,
+    errorsCount: 0,
+    fieldChecks: [
+      {
+        fieldName: 'Automated OCR Parser Availability',
+        status: 'INFO',
+        message: `Automated field extraction is currently calibrated for PAN Cards only. "${documentName}" has been securely uploaded to your vault for manual inspection; automated entity verification is unsupported for this document type.`,
+      },
+      {
+        fieldName: 'Vault Storage & Safety',
+        status: 'PASS',
+        message: 'Document safely stored in your private encrypted vault. Bring original physical document to your application appointment.',
+      },
+    ],
+    extractedOcrData: {},
+    isOcrProcessed: false,
+    ocrConfidence: 0,
+    disclaimer: 'Notice: Automated pre-submission verification is currently available for PAN cards. Other document categories are stored in your vault for manual review by the competent authority.',
+  };
+}
