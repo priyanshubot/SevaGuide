@@ -4,7 +4,7 @@ import {
   Bot,
   CalendarDays,
   Share2,
-  Palette,
+  SlidersHorizontal,
   X,
   Check,
   Star,
@@ -14,8 +14,7 @@ import {
   Monitor,
   Minus,
   Plus,
-  RotateCcw,
-  GripVertical
+  RotateCcw
 } from 'lucide-react';
 import { useTheme, ColorVisionMode } from '../context/ThemeContext';
 import { CivicCalendar } from './CivicCalendar';
@@ -38,104 +37,6 @@ export const FloatingQuickAccessToolbar: React.FC<FloatingQuickAccessToolbarProp
   const [activePanel, setActivePanel] = useState<ActivePanel>('none');
   const [shareToast, setShareToast] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // ---------------- Dragging & Positioning State ----------------
-  const [pos, setPos] = useState<{ x: number; y: number }>(() => {
-    try {
-      const saved = localStorage.getItem('sevaguide_toolbar_position');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (
-          typeof parsed.x === 'number' &&
-          typeof parsed.y === 'number' &&
-          !isNaN(parsed.x) &&
-          !isNaN(parsed.y)
-        ) {
-          return parsed;
-        }
-      }
-    } catch {
-      // fallback
-    }
-    if (typeof window !== 'undefined') {
-      return {
-        x: Math.max(8, window.innerWidth - 68),
-        y: Math.max(16, Math.floor((window.innerHeight - 300) / 2))
-      };
-    }
-    return { x: 16, y: 150 };
-  });
-
-  const isDraggingRef = useRef(false);
-  const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const initialPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const hasMovedRef = useRef(false);
-
-  // Clamp position to viewport bounds on window resize
-  useEffect(() => {
-    const handleResize = () => {
-      setPos((prev) => {
-        const toolbarWidth = 56;
-        const toolbarHeight = 310;
-        const clampedX = Math.min(Math.max(8, prev.x), window.innerWidth - toolbarWidth - 8);
-        const clampedY = Math.min(Math.max(8, prev.y), window.innerHeight - toolbarHeight - 8);
-        return { x: clampedX, y: clampedY };
-      });
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Pointer event handlers for dragging the toolbar
-  const handlePointerDown = (e: React.PointerEvent) => {
-    isDraggingRef.current = true;
-    hasMovedRef.current = false;
-    dragStartRef.current = { x: e.clientX, y: e.clientY };
-    initialPosRef.current = { ...pos };
-
-    try {
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    } catch {
-      // ignore
-    }
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDraggingRef.current) return;
-    const dx = e.clientX - dragStartRef.current.x;
-    const dy = e.clientY - dragStartRef.current.y;
-
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-      hasMovedRef.current = true;
-    }
-
-    const toolbarWidth = 56;
-    const toolbarHeight = 310;
-
-    const newX = Math.min(
-      Math.max(8, initialPosRef.current.x + dx),
-      window.innerWidth - toolbarWidth - 8
-    );
-    const newY = Math.min(
-      Math.max(8, initialPosRef.current.y + dy),
-      window.innerHeight - toolbarHeight - 8
-    );
-
-    setPos({ x: newX, y: newY });
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    if (isDraggingRef.current) {
-      isDraggingRef.current = false;
-      try {
-        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-      } catch {
-        // ignore
-      }
-      localStorage.setItem('sevaguide_toolbar_position', JSON.stringify(pos));
-    }
-  };
 
   // ---------------- Feedback State ----------------
   const [feedbackRating, setFeedbackRating] = useState<number>(0);
@@ -232,6 +133,7 @@ export const FloatingQuickAccessToolbar: React.FC<FloatingQuickAccessToolbarProp
     setHighContrast(false);
     setReducedMotion(false);
     setColorVisionMode('none');
+    setTheme('system');
     document.documentElement.classList.remove(
       'high-contrast',
       'reduce-motion',
@@ -244,6 +146,7 @@ export const FloatingQuickAccessToolbar: React.FC<FloatingQuickAccessToolbarProp
     localStorage.removeItem('sevaguide_high_contrast');
     localStorage.removeItem('sevaguide_reduced_motion');
     localStorage.removeItem('sevaguide_color_vision_mode');
+    localStorage.removeItem('sevaguide_theme');
   };
 
   // Close panels when clicking outside or pressing Escape
@@ -342,8 +245,8 @@ export const FloatingQuickAccessToolbar: React.FC<FloatingQuickAccessToolbarProp
     },
     {
       id: 'accessibility' as const,
-      label: 'Color Vision Accessibility',
-      icon: Palette,
+      label: 'Accessibility Options',
+      icon: SlidersHorizontal,
       onClick: () => setActivePanel((prev) => (prev === 'accessibility' ? 'none' : 'accessibility'))
     }
   ];
@@ -390,34 +293,17 @@ export const FloatingQuickAccessToolbar: React.FC<FloatingQuickAccessToolbarProp
   };
 
   const toolbarTheme = getToolbarStyles(colorVisionMode);
-  const isRightHalf = typeof window !== 'undefined' ? pos.x > window.innerWidth / 2 : true;
 
   return (
     <div
       ref={containerRef}
-      style={{
-        left: `${pos.x}px`,
-        top: `${pos.y}px`
-      }}
-      className="fixed z-40 flex flex-col items-center select-none touch-none"
+      className="fixed right-3 sm:right-4 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center"
       aria-label="Floating Quick Access Toolbar"
     >
       {/* ---------------- FLOATING TOOLBAR CONTAINER ---------------- */}
       <div
         className={`backdrop-blur-md p-1.5 sm:p-2 rounded-2xl border shadow-2xl flex flex-col gap-2 ring-1 ring-white/5 ${toolbarTheme.container}`}
       >
-        {/* DRAG HANDLE (Task 2) */}
-        <div
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          className="w-full flex items-center justify-center py-1 cursor-grab active:cursor-grabbing text-zinc-400 hover:text-white rounded-lg transition"
-          aria-label="Reposition toolbar"
-          title="Drag to reposition toolbar"
-        >
-          <GripVertical className="w-4 h-4 opacity-70 hover:opacity-100" />
-        </div>
-
         {/* TOOLBAR BUTTONS */}
         {toolbarActions.map((action) => {
           const Icon = action.icon;
@@ -425,11 +311,9 @@ export const FloatingQuickAccessToolbar: React.FC<FloatingQuickAccessToolbarProp
 
           return (
             <div key={action.id} className="relative group flex items-center">
-              {/* Tooltip (Opens Left or Right based on toolbar position) */}
+              {/* Tooltip */}
               <div
-                className={`absolute top-1/2 -translate-y-1/2 pointer-events-none opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-all duration-150 ease-out z-50 hidden sm:block ${
-                  isRightHalf ? 'right-full mr-3 translate-x-1 group-hover:translate-x-0' : 'left-full ml-3 -translate-x-1 group-hover:translate-x-0'
-                }`}
+                className="absolute right-full mr-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-all duration-150 ease-out z-50 hidden sm:block translate-x-1 group-hover:translate-x-0"
                 role="tooltip"
               >
                 <div className="bg-zinc-900 text-zinc-100 text-xs font-semibold px-3 py-1.5 rounded-lg border border-zinc-700/90 shadow-xl whitespace-nowrap">
@@ -440,11 +324,7 @@ export const FloatingQuickAccessToolbar: React.FC<FloatingQuickAccessToolbarProp
               {/* Action Button */}
               <button
                 type="button"
-                onClick={() => {
-                  if (!hasMovedRef.current) {
-                    action.onClick();
-                  }
-                }}
+                onClick={action.onClick}
                 className={`relative flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-xl transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${toolbarTheme.focusRing} ${
                   isActive ? toolbarTheme.btnActive : toolbarTheme.btnDefault
                 }`}
@@ -461,9 +341,7 @@ export const FloatingQuickAccessToolbar: React.FC<FloatingQuickAccessToolbarProp
       {/* ---------------- SHARE CONFIRMATION TOAST ---------------- */}
       {shareToast && (
         <div
-          className={`absolute top-1/2 -translate-y-1/2 bg-zinc-900/95 text-emerald-400 border border-emerald-500/40 px-3.5 py-2.5 rounded-xl shadow-2xl text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-200 whitespace-nowrap z-50 backdrop-blur-md ${
-            isRightHalf ? 'right-full mr-4' : 'left-full ml-4'
-          }`}
+          className="absolute right-full mr-4 top-1/2 -translate-y-1/2 bg-zinc-900/95 text-emerald-400 border border-emerald-500/40 px-3.5 py-2.5 rounded-xl shadow-2xl text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-200 whitespace-nowrap z-50 backdrop-blur-md"
           role="status"
           aria-live="polite"
         >
@@ -474,14 +352,12 @@ export const FloatingQuickAccessToolbar: React.FC<FloatingQuickAccessToolbarProp
         </div>
       )}
 
-      {/* ---------------- FLYOUT PANELS (Task 4 Simplified UI) ---------------- */}
+      {/* ---------------- FLYOUT PANELS ---------------- */}
 
       {/* 1. FEEDBACK PANEL */}
       {activePanel === 'feedback' && (
         <div
-          className={`absolute top-0 w-80 sm:w-96 max-w-[calc(100vw-4.5rem)] bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-5 z-50 animate-in fade-in duration-200 ${
-            isRightHalf ? 'right-full mr-4' : 'left-full ml-4'
-          }`}
+          className="absolute right-full mr-4 top-1/2 -translate-y-1/2 w-80 sm:w-96 max-w-[calc(100vw-4.5rem)] max-h-[85vh] overflow-y-auto bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-5 z-50 animate-in fade-in duration-200"
           role="dialog"
           aria-modal="true"
           aria-label="Provide Feedback"
@@ -598,117 +474,85 @@ export const FloatingQuickAccessToolbar: React.FC<FloatingQuickAccessToolbarProp
 
       {/* 2. CIVIC CALENDAR PANEL */}
       {activePanel === 'calendar' && (
-        <div
-          className={`absolute top-0 z-50 animate-in fade-in duration-200 ${
-            isRightHalf ? 'right-full mr-4' : 'left-full ml-4'
-          }`}
-        >
-          <CivicCalendar onClose={() => setActivePanel('none')} />
+        <div className="absolute right-full mr-4 top-1/2 -translate-y-1/2 z-50 animate-in fade-in duration-200">
+          <CivicCalendar
+            onClose={() => setActivePanel('none')}
+            className="relative top-0 right-0 mt-0 shadow-2xl"
+          />
         </div>
       )}
 
-      {/* 3. SIMPLIFIED COLOR VISION ACCESSIBILITY PANEL (Task 4) */}
+      {/* 3. ACCESSIBILITY OPTIONS PANEL (Tasks 1 & 2) */}
       {activePanel === 'accessibility' && (
         <div
-          className={`absolute top-0 w-80 sm:w-88 max-w-[calc(100vw-4.5rem)] max-h-[85vh] overflow-y-auto bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-4 z-50 animate-in fade-in duration-200 ${
-            isRightHalf ? 'right-full mr-4' : 'left-full ml-4'
-          }`}
+          className="absolute right-full mr-4 top-1/2 -translate-y-1/2 w-80 sm:w-88 max-w-[calc(100vw-4.5rem)] max-h-[85vh] overflow-y-auto bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-4 z-50 animate-in fade-in duration-200"
           role="dialog"
           aria-modal="true"
-          aria-label="Color Vision Accessibility Controls"
+          aria-label="Accessibility Options"
         >
-          {/* HEADING (Task 4.A: Subtitle sentence removed!) */}
+          {/* HEADER */}
           <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-zinc-800">
             <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-              <Palette className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span>Color Vision Accessibility</span>
+              <SlidersHorizontal className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <span>Accessibility Options</span>
             </h3>
             <button
               type="button"
               onClick={() => setActivePanel('none')}
               className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg transition"
-              aria-label="Close Panel"
+              aria-label="Close Accessibility Options"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
           <div className="py-3 space-y-3.5 text-xs">
-            {/* COLOR PALETTE OPTIONS (Task 4.B: Subtitles underneath option names REMOVED!) */}
-            <div className="space-y-1.5" role="radiogroup" aria-label="Color Vision Palettes">
-              {[
-                {
-                  id: 'none' as const,
-                  label: 'Default Theme',
-                  swatches: ['bg-blue-600', 'bg-emerald-500', 'bg-amber-500']
-                },
-                {
-                  id: 'protanopia' as const,
-                  label: 'Protanopia-Friendly',
-                  swatches: ['bg-yellow-500', 'bg-blue-600', 'bg-cyan-500']
-                },
-                {
-                  id: 'deuteranopia' as const,
-                  label: 'Deuteranopia-Friendly',
-                  swatches: ['bg-amber-400', 'bg-indigo-600', 'bg-teal-500']
-                },
-                {
-                  id: 'tritanopia' as const,
-                  label: 'Tritanopia-Friendly',
-                  swatches: ['bg-rose-600', 'bg-teal-600', 'bg-slate-500']
-                },
-                {
-                  id: 'high-contrast' as const,
-                  label: 'High Contrast Mode',
-                  swatches: ['bg-black dark:bg-white', 'bg-yellow-400', 'bg-blue-500']
-                }
-              ].map((palette) => {
-                const isSelected = colorVisionMode === palette.id;
-
-                return (
-                  <button
-                    key={palette.id}
-                    type="button"
-                    onClick={() => {
-                      setColorVisionMode(palette.id);
-                      if (palette.id === 'high-contrast') {
-                        setHighContrast(true);
-                      }
-                    }}
-                    className={`w-full py-2 px-3 rounded-xl border text-left flex items-center justify-between transition ${
-                      isSelected
-                        ? 'bg-blue-50/90 dark:bg-blue-950/70 border-blue-500 text-blue-900 dark:text-blue-100 font-semibold shadow-2xs'
-                        : 'bg-slate-50 dark:bg-zinc-900/80 border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800'
-                    }`}
-                    role="radio"
-                    aria-checked={isSelected}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                      {/* Swatches */}
-                      <div className="flex items-center -space-x-1 shrink-0">
-                        {palette.swatches.map((swatch, idx) => (
-                          <span
-                            key={idx}
-                            className={`w-3.5 h-3.5 rounded-full border border-white dark:border-zinc-900 shadow-2xs ${swatch}`}
-                          />
-                        ))}
-                      </div>
-                      {/* Palette Name ONLY (Subtitles removed per Task 4.B) */}
-                      <span className="text-xs font-semibold truncate">{palette.label}</span>
-                    </div>
-
-                    {/* Checkmark Indicator */}
-                    {isSelected && (
-                      <div className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 ml-2">
-                        <Check className="w-2.5 h-2.5" />
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
+            {/* SECTION A: COLOR THEME */}
+            <div>
+              <label className="block font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
+                Color Theme
+              </label>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setTheme('light')}
+                  className={`py-1.5 px-2 rounded-xl border flex items-center justify-center gap-1.5 font-medium transition text-xs ${
+                    theme === 'light'
+                      ? 'bg-blue-50/90 dark:bg-blue-950/70 border-blue-500 text-blue-900 dark:text-blue-100 font-bold shadow-2xs'
+                      : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800'
+                  }`}
+                >
+                  <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span>Light</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTheme('dark')}
+                  className={`py-1.5 px-2 rounded-xl border flex items-center justify-center gap-1.5 font-medium transition text-xs ${
+                    theme === 'dark'
+                      ? 'bg-blue-50/90 dark:bg-blue-950/70 border-blue-500 text-blue-900 dark:text-blue-100 font-bold shadow-2xs'
+                      : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800'
+                  }`}
+                >
+                  <Moon className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <span>Dark</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTheme('system')}
+                  className={`py-1.5 px-2 rounded-xl border flex items-center justify-center gap-1.5 font-medium transition text-xs ${
+                    theme === 'system'
+                      ? 'bg-blue-50/90 dark:bg-blue-950/70 border-blue-500 text-blue-900 dark:text-blue-100 font-bold shadow-2xs'
+                      : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800'
+                  }`}
+                >
+                  <Monitor className="w-3.5 h-3.5 shrink-0" />
+                  <span>System</span>
+                </button>
+              </div>
             </div>
 
-            {/* DISPLAY MAGNIFICATION (Task 4.C: Explanatory subtitle removed!) */}
+            {/* SECTION B: DISPLAY MAGNIFICATION */}
             <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800">
               <div className="flex items-center justify-between mb-2">
                 <label id="quick-toolbar-magnification-label" className="block font-semibold text-slate-800 dark:text-slate-200">
@@ -758,7 +602,7 @@ export const FloatingQuickAccessToolbar: React.FC<FloatingQuickAccessToolbarProp
               </div>
             </div>
 
-            {/* HIGH CONTRAST MODE TOGGLE (Task 4.D: Subtitle removed!) */}
+            {/* SECTION C: HIGH CONTRAST MODE */}
             <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-zinc-800">
               <span className="font-semibold text-slate-800 dark:text-slate-200">High Contrast Mode</span>
               <button
@@ -778,7 +622,7 @@ export const FloatingQuickAccessToolbar: React.FC<FloatingQuickAccessToolbarProp
               </button>
             </div>
 
-            {/* REDUCE ANIMATIONS TOGGLE (Task 4.E: Subtitle removed!) */}
+            {/* SECTION D: REDUCE ANIMATIONS */}
             <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-zinc-800">
               <span className="font-semibold text-slate-800 dark:text-slate-200">Reduce Animations</span>
               <button
@@ -798,65 +642,109 @@ export const FloatingQuickAccessToolbar: React.FC<FloatingQuickAccessToolbarProp
               </button>
             </div>
 
-            {/* COLOR THEME SELECTOR (Light / Dark / System) */}
-            <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800">
-              <label className="block font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
-                Color Theme
+            {/* SECTION E: COLOR VISION ACCESSIBILITY */}
+            <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800 space-y-1.5">
+              <label className="block font-semibold text-slate-800 dark:text-slate-200 mb-1">
+                Color Vision Accessibility
               </label>
-              <div className="grid grid-cols-3 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setTheme('light')}
-                  className={`py-1 px-2 rounded-lg border flex items-center justify-center gap-1 font-medium transition ${
-                    theme === 'light'
-                      ? 'bg-blue-600 text-white border-blue-600 font-bold'
-                      : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  <Sun className="w-3 h-3 text-amber-500" />
-                  <span>Light</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTheme('dark')}
-                  className={`py-1 px-2 rounded-lg border flex items-center justify-center gap-1 font-medium transition ${
-                    theme === 'dark'
-                      ? 'bg-blue-600 text-white border-blue-600 font-bold'
-                      : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  <Moon className="w-3 h-3 text-blue-400" />
-                  <span>Dark</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTheme('system')}
-                  className={`py-1 px-2 rounded-lg border flex items-center justify-center gap-1 font-medium transition ${
-                    theme === 'system'
-                      ? 'bg-blue-600 text-white border-blue-600 font-bold'
-                      : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  <Monitor className="w-3 h-3" />
-                  <span>System</span>
-                </button>
+              <div className="space-y-1.5" role="radiogroup" aria-label="Color Vision Palettes">
+                {[
+                  {
+                    id: 'none' as const,
+                    label: 'Default Theme',
+                    swatches: ['bg-blue-600', 'bg-emerald-500', 'bg-amber-500']
+                  },
+                  {
+                    id: 'protanopia' as const,
+                    label: 'Protanopia-Friendly',
+                    swatches: ['bg-yellow-500', 'bg-blue-600', 'bg-cyan-500']
+                  },
+                  {
+                    id: 'deuteranopia' as const,
+                    label: 'Deuteranopia-Friendly',
+                    swatches: ['bg-amber-400', 'bg-indigo-600', 'bg-teal-500']
+                  },
+                  {
+                    id: 'tritanopia' as const,
+                    label: 'Tritanopia-Friendly',
+                    swatches: ['bg-rose-600', 'bg-teal-600', 'bg-slate-500']
+                  },
+                  {
+                    id: 'high-contrast' as const,
+                    label: 'High Contrast Mode',
+                    swatches: ['bg-black dark:bg-white', 'bg-yellow-400', 'bg-blue-500']
+                  }
+                ].map((palette) => {
+                  const isSelected =
+                    palette.id === 'high-contrast'
+                      ? colorVisionMode === 'high-contrast' || highContrast
+                      : colorVisionMode === palette.id && !highContrast;
+
+                  return (
+                    <button
+                      key={palette.id}
+                      type="button"
+                      onClick={() => {
+                        setColorVisionMode(palette.id);
+                        if (palette.id === 'high-contrast') {
+                          setHighContrast(true);
+                          document.documentElement.classList.add('high-contrast');
+                          localStorage.setItem('sevaguide_high_contrast', 'true');
+                        } else if (highContrast) {
+                          setHighContrast(false);
+                          document.documentElement.classList.remove('high-contrast');
+                          localStorage.setItem('sevaguide_high_contrast', 'false');
+                        }
+                      }}
+                      className={`w-full py-2 px-3 rounded-xl border text-left flex items-center justify-between transition ${
+                        isSelected
+                          ? 'bg-blue-50/90 dark:bg-blue-950/70 border-blue-500 text-blue-900 dark:text-blue-100 font-semibold shadow-2xs'
+                          : 'bg-slate-50 dark:bg-zinc-900/80 border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800'
+                      }`}
+                      role="radio"
+                      aria-checked={isSelected}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        {/* Swatches */}
+                        <div className="flex items-center -space-x-1 shrink-0">
+                          {palette.swatches.map((swatch, idx) => (
+                            <span
+                              key={idx}
+                              className={`w-3.5 h-3.5 rounded-full border border-white dark:border-zinc-900 shadow-2xs ${swatch}`}
+                            />
+                          ))}
+                        </div>
+                        {/* Palette Name */}
+                        <span className="text-xs font-semibold truncate">{palette.label}</span>
+                      </div>
+
+                      {/* Checkmark Indicator */}
+                      {isSelected && (
+                        <div className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 ml-2">
+                          <Check className="w-2.5 h-2.5" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
 
+          {/* SECTION F & G: FOOTER */}
           <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex justify-between items-center">
             <button
               type="button"
               onClick={handleResetAccessibility}
-              className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-medium"
+              className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-medium transition py-1"
             >
-              <RotateCcw className="w-3 h-3" />
-              <span>Reset</span>
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset to Defaults</span>
             </button>
             <button
               type="button"
               onClick={() => setActivePanel('none')}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1 rounded-lg text-xs transition shadow-2xs"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-1.5 rounded-xl text-xs transition shadow-2xs"
             >
               Done
             </button>

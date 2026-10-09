@@ -22,9 +22,10 @@ import {
 
 interface CivicCalendarProps {
   onClose: () => void;
+  className?: string;
 }
 
-export const CivicCalendar: React.FC<CivicCalendarProps> = ({ onClose }) => {
+export const CivicCalendar: React.FC<CivicCalendarProps> = ({ onClose, className }) => {
   const {
     currentDate,
     selectedDate,
@@ -168,7 +169,9 @@ export const CivicCalendar: React.FC<CivicCalendarProps> = ({ onClose }) => {
 
   return (
     <div
-      className="absolute right-0 top-full mt-2 w-[350px] sm:w-[460px] md:w-[500px] max-w-[calc(100vw-1.5rem)] bg-white dark:bg-black border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-xl z-50 text-slate-800 dark:text-slate-200 animate-in fade-in slide-in-from-top-2 duration-150 flex flex-col max-h-[85vh] overflow-hidden"
+      className={`w-[350px] sm:w-[460px] md:w-[500px] max-w-[calc(100vw-1.5rem)] bg-white dark:bg-black border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl text-slate-800 dark:text-slate-200 flex flex-col max-h-[85vh] overflow-hidden ${
+        className !== undefined ? className : 'absolute right-0 top-full mt-2 z-50'
+      }`}
       role="dialog"
       aria-modal="true"
       aria-label="Civic Calendar & Office Timings"
