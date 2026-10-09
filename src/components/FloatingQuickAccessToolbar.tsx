@@ -46,7 +46,7 @@ export const FloatingQuickAccessToolbar: React.FC<FloatingQuickAccessToolbarProp
   const [feedbackSubmitted, setFeedbackSubmitted] = useState<boolean>(false);
 
   // ---------------- Accessibility State ----------------
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, colorVisionMode, setColorVisionMode } = useTheme();
   const [magnification, setMagnification] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('sevaguide_magnification');
@@ -109,6 +109,11 @@ export const FloatingQuickAccessToolbar: React.FC<FloatingQuickAccessToolbarProp
   const handleContrastToggle = () => {
     const next = !highContrast;
     setHighContrast(next);
+    if (next) {
+      setColorVisionMode('high-contrast');
+    } else if (colorVisionMode === 'high-contrast') {
+      setColorVisionMode('none');
+    }
     document.documentElement.classList.toggle('high-contrast', next);
     localStorage.setItem('sevaguide_high_contrast', String(next));
   };
@@ -124,10 +129,12 @@ export const FloatingQuickAccessToolbar: React.FC<FloatingQuickAccessToolbarProp
     handleResetMagnification();
     setHighContrast(false);
     setReducedMotion(false);
-    document.documentElement.classList.remove('high-contrast', 'reduce-motion');
+    setColorVisionMode('none');
+    document.documentElement.classList.remove('high-contrast', 'reduce-motion', 'cb-protanopia', 'cb-deuteranopia', 'cb-tritanopia', 'cb-high-contrast');
     localStorage.removeItem('sevaguide_magnification');
     localStorage.removeItem('sevaguide_high_contrast');
     localStorage.removeItem('sevaguide_reduced_motion');
+    localStorage.removeItem('sevaguide_color_vision_mode');
   };
 
   // Close panels when clicking outside or pressing Escape
@@ -492,6 +499,101 @@ export const FloatingQuickAccessToolbar: React.FC<FloatingQuickAccessToolbarProp
                   <Monitor className="w-3.5 h-3.5" />
                   <span>System</span>
                 </button>
+              </div>
+            </div>
+
+            {/* Color Vision / Color Blindness Mode */}
+            <div className="pt-2 border-t border-slate-100 dark:border-zinc-800">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block font-semibold text-slate-800 dark:text-slate-200">
+                  Color Vision Accessibility
+                </label>
+                {colorVisionMode !== 'none' && (
+                  <button
+                    type="button"
+                    onClick={() => setColorVisionMode('none')}
+                    className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline px-1 py-0.5 rounded transition"
+                  >
+                    Reset Palette
+                  </button>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2.5">
+                Select a palette optimized for color-vision deficiencies
+              </p>
+
+              <div className="space-y-1.5" role="radiogroup" aria-label="Color Vision Palettes">
+                {[
+                  {
+                    id: 'none' as const,
+                    label: 'Default Theme',
+                    desc: 'Standard color contrast',
+                    swatches: ['bg-blue-600', 'bg-emerald-500', 'bg-amber-500']
+                  },
+                  {
+                    id: 'protanopia' as const,
+                    label: 'Protanopia-Friendly',
+                    desc: 'Reduced red sensitivity (gold / royal blue)',
+                    swatches: ['bg-yellow-500', 'bg-blue-600', 'bg-cyan-500']
+                  },
+                  {
+                    id: 'deuteranopia' as const,
+                    label: 'Deuteranopia-Friendly',
+                    desc: 'Reduced green sensitivity (yellow / cobalt blue)',
+                    swatches: ['bg-amber-400', 'bg-indigo-600', 'bg-teal-500']
+                  },
+                  {
+                    id: 'tritanopia' as const,
+                    label: 'Tritanopia-Friendly',
+                    desc: 'Reduced blue-yellow discrimination (red / teal)',
+                    swatches: ['bg-rose-600', 'bg-teal-600', 'bg-slate-500']
+                  },
+                  {
+                    id: 'high-contrast' as const,
+                    label: 'High Contrast Mode',
+                    desc: 'Maximum black & white contrast',
+                    swatches: ['bg-black dark:bg-white', 'bg-yellow-400', 'bg-blue-500']
+                  }
+                ].map((palette) => {
+                  const isSelected = colorVisionMode === palette.id;
+
+                  return (
+                    <button
+                      key={palette.id}
+                      type="button"
+                      onClick={() => setColorVisionMode(palette.id)}
+                      className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition ${
+                        isSelected
+                          ? 'bg-blue-50/90 dark:bg-blue-950/70 border-blue-500 text-blue-900 dark:text-blue-100 font-semibold shadow-2xs'
+                          : 'bg-slate-50 dark:bg-zinc-900/80 border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800'
+                      }`}
+                      role="radio"
+                      aria-checked={isSelected}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <div className="flex items-center -space-x-1 shrink-0">
+                          {palette.swatches.map((swatch, idx) => (
+                            <span
+                              key={idx}
+                              className={`w-3.5 h-3.5 rounded-full border border-white dark:border-zinc-900 shadow-2xs ${swatch}`}
+                            />
+                          ))}
+                        </div>
+
+                        <div className="truncate">
+                          <p className="text-xs font-semibold leading-tight">{palette.label}</p>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{palette.desc}</p>
+                        </div>
+                      </div>
+
+                      {isSelected && (
+                        <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 ml-2">
+                          <Check className="w-3 h-3" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

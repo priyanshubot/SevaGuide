@@ -67,7 +67,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAssistant }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { theme, resolvedTheme, setTheme, toggleTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme, toggleTheme, colorVisionMode, setColorVisionMode } = useTheme();
   const panelRef = useRef<HTMLDivElement>(null);
 
   const isActive = (path: string) => location.pathname === path;
@@ -135,11 +135,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAssistant }) => {
     handleResetMagnification();
     setHighContrast(false);
     setReducedMotion(false);
-    document.documentElement.classList.remove('large-text', 'extra-large-text', 'high-contrast', 'reduce-motion');
+    setColorVisionMode('none');
+    document.documentElement.classList.remove('large-text', 'extra-large-text', 'high-contrast', 'reduce-motion', 'cb-protanopia', 'cb-deuteranopia', 'cb-tritanopia', 'cb-high-contrast');
     localStorage.removeItem('sevaguide_magnification');
     localStorage.removeItem('sevaguide_font_size');
     localStorage.removeItem('sevaguide_high_contrast');
     localStorage.removeItem('sevaguide_reduced_motion');
+    localStorage.removeItem('sevaguide_color_vision_mode');
   };
 
   // Close dropdowns on outside click or ESC
@@ -390,6 +392,55 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAssistant }) => {
                         <Monitor className="w-3.5 h-3.5" />
                         <span>System</span>
                       </button>
+                    </div>
+                  </div>
+
+                  {/* Color Vision / Color Blindness Mode */}
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block font-semibold text-slate-800 dark:text-slate-200">
+                        Color Vision Accessibility
+                      </label>
+                      {colorVisionMode !== 'none' && (
+                        <button
+                          type="button"
+                          onClick={() => setColorVisionMode('none')}
+                          className="text-[11px] font-semibold text-blue-700 dark:text-blue-400 hover:underline px-1 py-0.5 rounded transition"
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">
+                      Optimized palettes for color blindness
+                    </p>
+                    <div className="grid grid-cols-1 gap-1.5" role="radiogroup" aria-label="Color Vision Modes">
+                      {[
+                        { id: 'none' as const, label: 'Default Theme', desc: 'Standard colors' },
+                        { id: 'protanopia' as const, label: 'Protanopia', desc: 'Red-blind friendly' },
+                        { id: 'deuteranopia' as const, label: 'Deuteranopia', desc: 'Green-blind friendly' },
+                        { id: 'tritanopia' as const, label: 'Tritanopia', desc: 'Blue-yellow friendly' },
+                        { id: 'high-contrast' as const, label: 'High Contrast', desc: 'Max contrast' }
+                      ].map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setColorVisionMode(item.id)}
+                          className={`w-full py-1.5 px-2.5 rounded-lg border text-left flex items-center justify-between font-medium transition ${
+                            colorVisionMode === item.id
+                              ? 'bg-blue-50 dark:bg-blue-950/70 border-blue-500 text-blue-700 dark:text-blue-400 font-bold'
+                              : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800'
+                          }`}
+                          role="radio"
+                          aria-checked={colorVisionMode === item.id}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span>{item.label}</span>
+                            <span className="text-[10px] text-slate-400 font-normal">({item.desc})</span>
+                          </div>
+                          {colorVisionMode === item.id && <span className="text-blue-600 dark:text-blue-400 text-xs">✓</span>}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
