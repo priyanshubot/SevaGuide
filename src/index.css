@@ -29,9 +29,6 @@ html.dark body {
   color: #f1f5f9;
 }
 
-html.high-contrast {
-  filter: contrast(120%);
-}
 
 html.reduce-motion *,
 html.reduce-motion *::before,
@@ -87,28 +84,941 @@ html.reduce-motion *::after {
   border-color: #2563eb;
 }
 
-/* Color Vision Deficiency Modes */
+/* ==========================================================================
+   GLOBAL COLOR VISION ACCESSIBILITY THEME ENGINE
+   Accessible, scientifically selected palettes for each vision condition.
+   Single source of truth via data-vision-mode and cb-* root classes.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. PROTANOPIA-FRIENDLY (Red-blind / Red-weak: L-cone defect)
+   Pairing: High-contrast Cobalt/Cerulean Blue + Warm Amber/Gold + Sky Cyan
+   -------------------------------------------------------------------------- */
+html[data-vision-mode="protanopia"],
 html.cb-protanopia {
-  filter: url('#protanopia-filter');
+  --cv-primary: #0284c7;
+  --cv-primary-hover: #0369a1;
+  --cv-accent: #38bdf8;
+  --cv-success: #0284c7;
+  --cv-warning: #d97706;
+  --cv-danger: #b45309;
+  --cv-focus: #eab308;
 }
 
+/* Header & Navigation */
+html[data-vision-mode="protanopia"] header,
+html.cb-protanopia header {
+  border-top-color: #0284c7 !important;
+}
+
+html[data-vision-mode="protanopia"] nav a.text-blue-700,
+html[data-vision-mode="protanopia"] nav a.text-blue-600,
+html.cb-protanopia nav a.text-blue-700,
+html.cb-protanopia nav a.text-blue-600 {
+  color: #0284c7 !important;
+}
+
+html[data-vision-mode="protanopia"] nav a.bg-blue-50,
+html.cb-protanopia nav a.bg-blue-50 {
+  background-color: #f0f9ff !important;
+}
+
+html.dark[data-vision-mode="protanopia"] nav a.bg-blue-950\/60,
+html.dark.cb-protanopia nav a.bg-blue-950\/60 {
+  background-color: rgba(2, 132, 199, 0.25) !important;
+  color: #7dd3fc !important;
+}
+
+/* Brand Wordmark */
+html[data-vision-mode="protanopia"] .text-emerald-600,
+html[data-vision-mode="protanopia"] .text-emerald-400,
+html.cb-protanopia .text-emerald-600,
+html.cb-protanopia .text-emerald-400 {
+  color: #0284c7 !important;
+}
+
+/* Primary buttons & interactive fills */
+html[data-vision-mode="protanopia"] button:not(.palette-swatch).bg-blue-600,
+html[data-vision-mode="protanopia"] button:not(.palette-swatch).bg-blue-700,
+html[data-vision-mode="protanopia"] button:not(.palette-swatch).bg-blue-800,
+html[data-vision-mode="protanopia"] a:not(.palette-swatch).bg-blue-600,
+html[data-vision-mode="protanopia"] a:not(.palette-swatch).bg-blue-700,
+html[data-vision-mode="protanopia"] a:not(.palette-swatch).bg-blue-800,
+html[data-vision-mode="protanopia"] div.bg-blue-700,
+html[data-vision-mode="protanopia"] .bg-blue-600:not(.palette-swatch),
+html[data-vision-mode="protanopia"] .bg-blue-700:not(.palette-swatch),
+html[data-vision-mode="protanopia"] .bg-blue-800:not(.palette-swatch),
+html.cb-protanopia button:not(.palette-swatch).bg-blue-600,
+html.cb-protanopia button:not(.palette-swatch).bg-blue-700,
+html.cb-protanopia button:not(.palette-swatch).bg-blue-800,
+html.cb-protanopia a:not(.palette-swatch).bg-blue-600,
+html.cb-protanopia a:not(.palette-swatch).bg-blue-700,
+html.cb-protanopia a:not(.palette-swatch).bg-blue-800,
+html.cb-protanopia div.bg-blue-700,
+html.cb-protanopia .bg-blue-600:not(.palette-swatch),
+html.cb-protanopia .bg-blue-700:not(.palette-swatch),
+html.cb-protanopia .bg-blue-800:not(.palette-swatch) {
+  background-color: #0284c7 !important;
+  color: #ffffff !important;
+}
+
+html[data-vision-mode="protanopia"] button.bg-blue-600:hover,
+html[data-vision-mode="protanopia"] button.bg-blue-700:hover,
+html[data-vision-mode="protanopia"] a.bg-blue-600:hover,
+html[data-vision-mode="protanopia"] a.bg-blue-700:hover,
+html.cb-protanopia button.bg-blue-600:hover,
+html.cb-protanopia button.bg-blue-700:hover,
+html.cb-protanopia a.bg-blue-600:hover,
+html.cb-protanopia a.bg-blue-700:hover {
+  background-color: #0369a1 !important;
+}
+
+/* Primary text & links */
+html[data-vision-mode="protanopia"] .text-blue-600,
+html[data-vision-mode="protanopia"] .text-blue-700,
+html[data-vision-mode="protanopia"] .text-blue-800,
+html[data-vision-mode="protanopia"] .text-blue-900,
+html.cb-protanopia .text-blue-600,
+html.cb-protanopia .text-blue-700,
+html.cb-protanopia .text-blue-800,
+html.cb-protanopia .text-blue-900 {
+  color: #0284c7 !important;
+}
+
+html.dark[data-vision-mode="protanopia"] .text-blue-300,
+html.dark[data-vision-mode="protanopia"] .text-blue-400,
+html.dark.cb-protanopia .text-blue-300,
+html.dark.cb-protanopia .text-blue-400 {
+  color: #38bdf8 !important;
+}
+
+/* Primary light badges & containers */
+html[data-vision-mode="protanopia"] .bg-blue-50,
+html[data-vision-mode="protanopia"] .bg-blue-100,
+html.cb-protanopia .bg-blue-50,
+html.cb-protanopia .bg-blue-100 {
+  background-color: #f0f9ff !important;
+  border-color: #bae6fd !important;
+  color: #0369a1 !important;
+}
+
+html.dark[data-vision-mode="protanopia"] [class*="bg-blue-950"],
+html.dark.cb-protanopia [class*="bg-blue-950"] {
+  background-color: rgba(2, 132, 199, 0.25) !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
+  color: #7dd3fc !important;
+}
+
+html[data-vision-mode="protanopia"] .border-blue-200,
+html[data-vision-mode="protanopia"] .border-blue-300,
+html[data-vision-mode="protanopia"] .border-blue-500,
+html[data-vision-mode="protanopia"] .border-blue-600,
+html.cb-protanopia .border-blue-200,
+html.cb-protanopia .border-blue-300,
+html.cb-protanopia .border-blue-500,
+html.cb-protanopia .border-blue-600 {
+  border-color: #0284c7 !important;
+}
+
+/* Success / Matched / Ready -> Cyan / Cerulean Blue */
+html[data-vision-mode="protanopia"] button:not(.palette-swatch).bg-emerald-600,
+html[data-vision-mode="protanopia"] button:not(.palette-swatch).bg-emerald-500,
+html[data-vision-mode="protanopia"] .bg-emerald-600:not(.palette-swatch),
+html[data-vision-mode="protanopia"] .bg-emerald-500:not(.palette-swatch),
+html.cb-protanopia button:not(.palette-swatch).bg-emerald-600,
+html.cb-protanopia button:not(.palette-swatch).bg-emerald-500,
+html.cb-protanopia .bg-emerald-600:not(.palette-swatch),
+html.cb-protanopia .bg-emerald-500:not(.palette-swatch) {
+  background-color: #0284c7 !important;
+  color: #ffffff !important;
+}
+
+html[data-vision-mode="protanopia"] .text-emerald-600,
+html[data-vision-mode="protanopia"] .text-emerald-700,
+html[data-vision-mode="protanopia"] .text-emerald-800,
+html.cb-protanopia .text-emerald-600,
+html.cb-protanopia .text-emerald-700,
+html.cb-protanopia .text-emerald-800 {
+  color: #0284c7 !important;
+}
+
+html.dark[data-vision-mode="protanopia"] .text-emerald-300,
+html.dark[data-vision-mode="protanopia"] .text-emerald-400,
+html.dark.cb-protanopia .text-emerald-300,
+html.dark.cb-protanopia .text-emerald-400 {
+  color: #38bdf8 !important;
+}
+
+html[data-vision-mode="protanopia"] .bg-emerald-50,
+html[data-vision-mode="protanopia"] .bg-emerald-100,
+html.cb-protanopia .bg-emerald-50,
+html.cb-protanopia .bg-emerald-100 {
+  background-color: #f0f9ff !important;
+  border-color: #7dd3fc !important;
+  color: #0369a1 !important;
+}
+
+html.dark[data-vision-mode="protanopia"] [class*="bg-emerald-950"],
+html.dark.cb-protanopia [class*="bg-emerald-950"] {
+  background-color: rgba(2, 132, 199, 0.25) !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
+  color: #7dd3fc !important;
+}
+
+html[data-vision-mode="protanopia"] .border-emerald-200,
+html[data-vision-mode="protanopia"] .border-emerald-300,
+html.cb-protanopia .border-emerald-200,
+html.cb-protanopia .border-emerald-300 {
+  border-color: #7dd3fc !important;
+}
+
+/* Warning / Error / Mismatch / Conditional -> Warm Amber / Gold */
+html[data-vision-mode="protanopia"] .bg-rose-600:not(.palette-swatch),
+html[data-vision-mode="protanopia"] .bg-rose-500:not(.palette-swatch),
+html[data-vision-mode="protanopia"] .bg-red-600,
+html[data-vision-mode="protanopia"] .bg-amber-600:not(.palette-swatch),
+html[data-vision-mode="protanopia"] .bg-amber-500:not(.palette-swatch),
+html.cb-protanopia .bg-rose-600:not(.palette-swatch),
+html.cb-protanopia .bg-rose-500:not(.palette-swatch),
+html.cb-protanopia .bg-red-600,
+html.cb-protanopia .bg-amber-600:not(.palette-swatch),
+html.cb-protanopia .bg-amber-500:not(.palette-swatch) {
+  background-color: #d97706 !important;
+  color: #ffffff !important;
+}
+
+html[data-vision-mode="protanopia"] .text-rose-600,
+html[data-vision-mode="protanopia"] .text-rose-700,
+html[data-vision-mode="protanopia"] .text-rose-800,
+html[data-vision-mode="protanopia"] .text-red-600,
+html[data-vision-mode="protanopia"] .text-amber-600,
+html[data-vision-mode="protanopia"] .text-amber-700,
+html[data-vision-mode="protanopia"] .text-amber-800,
+html.cb-protanopia .text-rose-600,
+html.cb-protanopia .text-rose-700,
+html.cb-protanopia .text-rose-800,
+html.cb-protanopia .text-red-600,
+html.cb-protanopia .text-amber-600,
+html.cb-protanopia .text-amber-700,
+html.cb-protanopia .text-amber-800 {
+  color: #b45309 !important;
+}
+
+html.dark[data-vision-mode="protanopia"] .text-rose-300,
+html.dark[data-vision-mode="protanopia"] .text-rose-400,
+html.dark[data-vision-mode="protanopia"] .text-amber-300,
+html.dark[data-vision-mode="protanopia"] .text-amber-400,
+html.dark.cb-protanopia .text-rose-300,
+html.dark.cb-protanopia .text-rose-400,
+html.dark.cb-protanopia .text-amber-300,
+html.dark.cb-protanopia .text-amber-400 {
+  color: #fbbf24 !important;
+}
+
+html[data-vision-mode="protanopia"] .bg-rose-50,
+html[data-vision-mode="protanopia"] .bg-rose-100,
+html[data-vision-mode="protanopia"] .bg-amber-50,
+html[data-vision-mode="protanopia"] .bg-amber-100,
+html.cb-protanopia .bg-rose-50,
+html.cb-protanopia .bg-rose-100,
+html.cb-protanopia .bg-amber-50,
+html.cb-protanopia .bg-amber-100 {
+  background-color: #fef3c7 !important;
+  border-color: #fcd34d !important;
+  color: #92400e !important;
+}
+
+html.dark[data-vision-mode="protanopia"] [class*="bg-rose-950"],
+html.dark[data-vision-mode="protanopia"] [class*="bg-amber-950"],
+html.dark.cb-protanopia [class*="bg-rose-950"],
+html.dark.cb-protanopia [class*="bg-amber-950"] {
+  background-color: rgba(217, 119, 6, 0.25) !important;
+  border-color: rgba(251, 191, 36, 0.4) !important;
+  color: #fde68a !important;
+}
+
+html[data-vision-mode="protanopia"] .border-rose-200,
+html[data-vision-mode="protanopia"] .border-rose-300,
+html[data-vision-mode="protanopia"] .border-amber-200,
+html[data-vision-mode="protanopia"] .border-amber-300,
+html.cb-protanopia .border-rose-200,
+html.cb-protanopia .border-rose-300,
+html.cb-protanopia .border-amber-200,
+html.cb-protanopia .border-amber-300 {
+  border-color: #f59e0b !important;
+}
+
+/* Service Card & Interaction */
+html[data-vision-mode="protanopia"] .service-card-pop:hover,
+html.cb-protanopia .service-card-pop:hover {
+  border-color: #0284c7 !important;
+  box-shadow: 0 12px 26px -6px rgba(2, 132, 199, 0.25) !important;
+}
+
+html[data-vision-mode="protanopia"] :focus-visible,
+html.cb-protanopia :focus-visible,
+html[data-vision-mode="protanopia"] .service-card-pop:focus-visible,
+html.cb-protanopia .service-card-pop:focus-visible {
+  outline: 2px solid #eab308 !important;
+  outline-offset: 2px !important;
+}
+
+html[data-vision-mode="protanopia"] input:focus,
+html[data-vision-mode="protanopia"] textarea:focus,
+html[data-vision-mode="protanopia"] select:focus,
+html.cb-protanopia input:focus,
+html.cb-protanopia textarea:focus,
+html.cb-protanopia select:focus {
+  border-color: #0284c7 !important;
+  box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.35) !important;
+}
+
+
+/* --------------------------------------------------------------------------
+   2. DEUTERANOPIA-FRIENDLY (Green-blind / Green-weak: M-cone defect)
+   Pairing: Royal Indigo + Distinct Teal (Success) + Vermilion/Orange (Alert)
+   -------------------------------------------------------------------------- */
+html[data-vision-mode="deuteranopia"],
 html.cb-deuteranopia {
-  filter: url('#deuteranopia-filter');
+  --cv-primary: #4f46e5;
+  --cv-primary-hover: #4338ca;
+  --cv-accent: #818cf8;
+  --cv-success: #0d9488;
+  --cv-warning: #ea580c;
+  --cv-danger: #c2410c;
+  --cv-focus: #6366f1;
 }
 
+/* Header & Navigation */
+html[data-vision-mode="deuteranopia"] header,
+html.cb-deuteranopia header {
+  border-top-color: #4f46e5 !important;
+}
+
+html[data-vision-mode="deuteranopia"] nav a.text-blue-700,
+html[data-vision-mode="deuteranopia"] nav a.text-blue-600,
+html.cb-deuteranopia nav a.text-blue-700,
+html.cb-deuteranopia nav a.text-blue-600 {
+  color: #4f46e5 !important;
+}
+
+html[data-vision-mode="deuteranopia"] nav a.bg-blue-50,
+html.cb-deuteranopia nav a.bg-blue-50 {
+  background-color: #eef2ff !important;
+}
+
+html.dark[data-vision-mode="deuteranopia"] nav a.bg-blue-950\/60,
+html.dark.cb-deuteranopia nav a.bg-blue-950\/60 {
+  background-color: rgba(79, 70, 229, 0.25) !important;
+  color: #a5b4fc !important;
+}
+
+/* Brand Wordmark */
+html[data-vision-mode="deuteranopia"] .text-emerald-600,
+html[data-vision-mode="deuteranopia"] .text-emerald-400,
+html.cb-deuteranopia .text-emerald-600,
+html.cb-deuteranopia .text-emerald-400 {
+  color: #0d9488 !important;
+}
+
+/* Primary buttons & interactive fills */
+html[data-vision-mode="deuteranopia"] button:not(.palette-swatch).bg-blue-600,
+html[data-vision-mode="deuteranopia"] button:not(.palette-swatch).bg-blue-700,
+html[data-vision-mode="deuteranopia"] button:not(.palette-swatch).bg-blue-800,
+html[data-vision-mode="deuteranopia"] a:not(.palette-swatch).bg-blue-600,
+html[data-vision-mode="deuteranopia"] a:not(.palette-swatch).bg-blue-700,
+html[data-vision-mode="deuteranopia"] a:not(.palette-swatch).bg-blue-800,
+html[data-vision-mode="deuteranopia"] div.bg-blue-700,
+html[data-vision-mode="deuteranopia"] .bg-blue-600:not(.palette-swatch),
+html[data-vision-mode="deuteranopia"] .bg-blue-700:not(.palette-swatch),
+html[data-vision-mode="deuteranopia"] .bg-blue-800:not(.palette-swatch),
+html.cb-deuteranopia button:not(.palette-swatch).bg-blue-600,
+html.cb-deuteranopia button:not(.palette-swatch).bg-blue-700,
+html.cb-deuteranopia button:not(.palette-swatch).bg-blue-800,
+html.cb-deuteranopia a:not(.palette-swatch).bg-blue-600,
+html.cb-deuteranopia a:not(.palette-swatch).bg-blue-700,
+html.cb-deuteranopia a:not(.palette-swatch).bg-blue-800,
+html.cb-deuteranopia div.bg-blue-700,
+html.cb-deuteranopia .bg-blue-600:not(.palette-swatch),
+html.cb-deuteranopia .bg-blue-700:not(.palette-swatch),
+html.cb-deuteranopia .bg-blue-800:not(.palette-swatch) {
+  background-color: #4f46e5 !important;
+  color: #ffffff !important;
+}
+
+html[data-vision-mode="deuteranopia"] button.bg-blue-600:hover,
+html[data-vision-mode="deuteranopia"] button.bg-blue-700:hover,
+html[data-vision-mode="deuteranopia"] a.bg-blue-600:hover,
+html[data-vision-mode="deuteranopia"] a.bg-blue-700:hover,
+html.cb-deuteranopia button.bg-blue-600:hover,
+html.cb-deuteranopia button.bg-blue-700:hover,
+html.cb-deuteranopia a.bg-blue-600:hover,
+html.cb-deuteranopia a.bg-blue-700:hover {
+  background-color: #4338ca !important;
+}
+
+/* Primary text & links */
+html[data-vision-mode="deuteranopia"] .text-blue-600,
+html[data-vision-mode="deuteranopia"] .text-blue-700,
+html[data-vision-mode="deuteranopia"] .text-blue-800,
+html[data-vision-mode="deuteranopia"] .text-blue-900,
+html.cb-deuteranopia .text-blue-600,
+html.cb-deuteranopia .text-blue-700,
+html.cb-deuteranopia .text-blue-800,
+html.cb-deuteranopia .text-blue-900 {
+  color: #4f46e5 !important;
+}
+
+html.dark[data-vision-mode="deuteranopia"] .text-blue-300,
+html.dark[data-vision-mode="deuteranopia"] .text-blue-400,
+html.dark.cb-deuteranopia .text-blue-300,
+html.dark.cb-deuteranopia .text-blue-400 {
+  color: #818cf8 !important;
+}
+
+/* Primary light badges & containers */
+html[data-vision-mode="deuteranopia"] .bg-blue-50,
+html[data-vision-mode="deuteranopia"] .bg-blue-100,
+html.cb-deuteranopia .bg-blue-50,
+html.cb-deuteranopia .bg-blue-100 {
+  background-color: #eef2ff !important;
+  border-color: #c7d2fe !important;
+  color: #3730a3 !important;
+}
+
+html.dark[data-vision-mode="deuteranopia"] [class*="bg-blue-950"],
+html.dark.cb-deuteranopia [class*="bg-blue-950"] {
+  background-color: rgba(79, 70, 229, 0.25) !important;
+  border-color: rgba(129, 140, 248, 0.4) !important;
+  color: #a5b4fc !important;
+}
+
+html[data-vision-mode="deuteranopia"] .border-blue-200,
+html[data-vision-mode="deuteranopia"] .border-blue-300,
+html[data-vision-mode="deuteranopia"] .border-blue-500,
+html[data-vision-mode="deuteranopia"] .border-blue-600,
+html.cb-deuteranopia .border-blue-200,
+html.cb-deuteranopia .border-blue-300,
+html.cb-deuteranopia .border-blue-500,
+html.cb-deuteranopia .border-blue-600 {
+  border-color: #4f46e5 !important;
+}
+
+/* Success / Matched / Ready -> Distinct Teal */
+html[data-vision-mode="deuteranopia"] button:not(.palette-swatch).bg-emerald-600,
+html[data-vision-mode="deuteranopia"] button:not(.palette-swatch).bg-emerald-500,
+html[data-vision-mode="deuteranopia"] .bg-emerald-600:not(.palette-swatch),
+html[data-vision-mode="deuteranopia"] .bg-emerald-500:not(.palette-swatch),
+html.cb-deuteranopia button:not(.palette-swatch).bg-emerald-600,
+html.cb-deuteranopia button:not(.palette-swatch).bg-emerald-500,
+html.cb-deuteranopia .bg-emerald-600:not(.palette-swatch),
+html.cb-deuteranopia .bg-emerald-500:not(.palette-swatch) {
+  background-color: #0d9488 !important;
+  color: #ffffff !important;
+}
+
+html[data-vision-mode="deuteranopia"] .text-emerald-600,
+html[data-vision-mode="deuteranopia"] .text-emerald-700,
+html[data-vision-mode="deuteranopia"] .text-emerald-800,
+html.cb-deuteranopia .text-emerald-600,
+html.cb-deuteranopia .text-emerald-700,
+html.cb-deuteranopia .text-emerald-800 {
+  color: #0f766e !important;
+}
+
+html.dark[data-vision-mode="deuteranopia"] .text-emerald-300,
+html.dark[data-vision-mode="deuteranopia"] .text-emerald-400,
+html.dark.cb-deuteranopia .text-emerald-300,
+html.dark.cb-deuteranopia .text-emerald-400 {
+  color: #2dd4bf !important;
+}
+
+html[data-vision-mode="deuteranopia"] .bg-emerald-50,
+html[data-vision-mode="deuteranopia"] .bg-emerald-100,
+html.cb-deuteranopia .bg-emerald-50,
+html.cb-deuteranopia .bg-emerald-100 {
+  background-color: #ccfbf1 !important;
+  border-color: #5eead4 !important;
+  color: #115e59 !important;
+}
+
+html.dark[data-vision-mode="deuteranopia"] [class*="bg-emerald-950"],
+html.dark.cb-deuteranopia [class*="bg-emerald-950"] {
+  background-color: rgba(13, 148, 136, 0.25) !important;
+  border-color: rgba(45, 212, 191, 0.4) !important;
+  color: #5eead4 !important;
+}
+
+html[data-vision-mode="deuteranopia"] .border-emerald-200,
+html[data-vision-mode="deuteranopia"] .border-emerald-300,
+html.cb-deuteranopia .border-emerald-200,
+html.cb-deuteranopia .border-emerald-300 {
+  border-color: #5eead4 !important;
+}
+
+/* Warning / Error / Mismatch / Conditional -> Vermilion / Burnt Orange */
+html[data-vision-mode="deuteranopia"] .bg-rose-600:not(.palette-swatch),
+html[data-vision-mode="deuteranopia"] .bg-rose-500:not(.palette-swatch),
+html[data-vision-mode="deuteranopia"] .bg-red-600,
+html[data-vision-mode="deuteranopia"] .bg-amber-600:not(.palette-swatch),
+html[data-vision-mode="deuteranopia"] .bg-amber-500:not(.palette-swatch),
+html.cb-deuteranopia .bg-rose-600:not(.palette-swatch),
+html.cb-deuteranopia .bg-rose-500:not(.palette-swatch),
+html.cb-deuteranopia .bg-red-600,
+html.cb-deuteranopia .bg-amber-600:not(.palette-swatch),
+html.cb-deuteranopia .bg-amber-500:not(.palette-swatch) {
+  background-color: #ea580c !important;
+  color: #ffffff !important;
+}
+
+html[data-vision-mode="deuteranopia"] .text-rose-600,
+html[data-vision-mode="deuteranopia"] .text-rose-700,
+html[data-vision-mode="deuteranopia"] .text-rose-800,
+html[data-vision-mode="deuteranopia"] .text-red-600,
+html[data-vision-mode="deuteranopia"] .text-amber-600,
+html[data-vision-mode="deuteranopia"] .text-amber-700,
+html[data-vision-mode="deuteranopia"] .text-amber-800,
+html.cb-deuteranopia .text-rose-600,
+html.cb-deuteranopia .text-rose-700,
+html.cb-deuteranopia .text-rose-800,
+html.cb-deuteranopia .text-red-600,
+html.cb-deuteranopia .text-amber-600,
+html.cb-deuteranopia .text-amber-700,
+html.cb-deuteranopia .text-amber-800 {
+  color: #c2410c !important;
+}
+
+html.dark[data-vision-mode="deuteranopia"] .text-rose-300,
+html.dark[data-vision-mode="deuteranopia"] .text-rose-400,
+html.dark[data-vision-mode="deuteranopia"] .text-amber-300,
+html.dark[data-vision-mode="deuteranopia"] .text-amber-400,
+html.dark.cb-deuteranopia .text-rose-300,
+html.dark.cb-deuteranopia .text-rose-400,
+html.dark.cb-deuteranopia .text-amber-300,
+html.dark.cb-deuteranopia .text-amber-400 {
+  color: #fb923c !important;
+}
+
+html[data-vision-mode="deuteranopia"] .bg-rose-50,
+html[data-vision-mode="deuteranopia"] .bg-rose-100,
+html[data-vision-mode="deuteranopia"] .bg-amber-50,
+html[data-vision-mode="deuteranopia"] .bg-amber-100,
+html.cb-deuteranopia .bg-rose-50,
+html.cb-deuteranopia .bg-rose-100,
+html.cb-deuteranopia .bg-amber-50,
+html.cb-deuteranopia .bg-amber-100 {
+  background-color: #ffedd5 !important;
+  border-color: #fdba74 !important;
+  color: #9a3412 !important;
+}
+
+html.dark[data-vision-mode="deuteranopia"] [class*="bg-rose-950"],
+html.dark[data-vision-mode="deuteranopia"] [class*="bg-amber-950"],
+html.dark.cb-deuteranopia [class*="bg-rose-950"],
+html.dark.cb-deuteranopia [class*="bg-amber-950"] {
+  background-color: rgba(234, 88, 12, 0.25) !important;
+  border-color: rgba(251, 146, 60, 0.4) !important;
+  color: #fdba74 !important;
+}
+
+html[data-vision-mode="deuteranopia"] .border-rose-200,
+html[data-vision-mode="deuteranopia"] .border-rose-300,
+html[data-vision-mode="deuteranopia"] .border-amber-200,
+html[data-vision-mode="deuteranopia"] .border-amber-300,
+html.cb-deuteranopia .border-rose-200,
+html.cb-deuteranopia .border-rose-300,
+html.cb-deuteranopia .border-amber-200,
+html.cb-deuteranopia .border-amber-300 {
+  border-color: #ea580c !important;
+}
+
+/* Service Card & Interaction */
+html[data-vision-mode="deuteranopia"] .service-card-pop:hover,
+html.cb-deuteranopia .service-card-pop:hover {
+  border-color: #4f46e5 !important;
+  box-shadow: 0 12px 26px -6px rgba(79, 70, 229, 0.25) !important;
+}
+
+html[data-vision-mode="deuteranopia"] :focus-visible,
+html.cb-deuteranopia :focus-visible,
+html[data-vision-mode="deuteranopia"] .service-card-pop:focus-visible,
+html.cb-deuteranopia .service-card-pop:focus-visible {
+  outline: 2px solid #6366f1 !important;
+  outline-offset: 2px !important;
+}
+
+html[data-vision-mode="deuteranopia"] input:focus,
+html[data-vision-mode="deuteranopia"] textarea:focus,
+html[data-vision-mode="deuteranopia"] select:focus,
+html.cb-deuteranopia input:focus,
+html.cb-deuteranopia textarea:focus,
+html.cb-deuteranopia select:focus {
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35) !important;
+}
+
+
+/* --------------------------------------------------------------------------
+   3. TRITANOPIA-FRIENDLY (Blue-blind / Blue-weak: S-cone defect)
+   Pairing: Crimson/Rose (Primary) + Deep Mint (Success) + Dark Maroon (Alert)
+   Avoids blue as primary differentiator (blue-green confusion).
+   -------------------------------------------------------------------------- */
+html[data-vision-mode="tritanopia"],
 html.cb-tritanopia {
-  filter: url('#tritanopia-filter');
+  --cv-primary: #e11d48;
+  --cv-primary-hover: #be123c;
+  --cv-accent: #fb7185;
+  --cv-success: #059669;
+  --cv-warning: #9f1239;
+  --cv-danger: #881337;
+  --cv-focus: #f43f5e;
 }
 
-html.cb-high-contrast {
-  filter: contrast(135%) saturate(120%);
+/* Header & Navigation */
+html[data-vision-mode="tritanopia"] header,
+html.cb-tritanopia header {
+  border-top-color: #e11d48 !important;
 }
 
-/* High contrast mode element contrast enhancements */
+html[data-vision-mode="tritanopia"] nav a.text-blue-700,
+html[data-vision-mode="tritanopia"] nav a.text-blue-600,
+html.cb-tritanopia nav a.text-blue-700,
+html.cb-tritanopia nav a.text-blue-600 {
+  color: #e11d48 !important;
+}
+
+html[data-vision-mode="tritanopia"] nav a.bg-blue-50,
+html.cb-tritanopia nav a.bg-blue-50 {
+  background-color: #fff1f2 !important;
+}
+
+html.dark[data-vision-mode="tritanopia"] nav a.bg-blue-950\/60,
+html.dark.cb-tritanopia nav a.bg-blue-950\/60 {
+  background-color: rgba(225, 29, 72, 0.25) !important;
+  color: #fda4af !important;
+}
+
+/* Brand Wordmark */
+html[data-vision-mode="tritanopia"] .text-emerald-600,
+html[data-vision-mode="tritanopia"] .text-emerald-400,
+html.cb-tritanopia .text-emerald-600,
+html.cb-tritanopia .text-emerald-400 {
+  color: #059669 !important;
+}
+
+/* Primary buttons & interactive fills */
+html[data-vision-mode="tritanopia"] button:not(.palette-swatch).bg-blue-600,
+html[data-vision-mode="tritanopia"] button:not(.palette-swatch).bg-blue-700,
+html[data-vision-mode="tritanopia"] button:not(.palette-swatch).bg-blue-800,
+html[data-vision-mode="tritanopia"] a:not(.palette-swatch).bg-blue-600,
+html[data-vision-mode="tritanopia"] a:not(.palette-swatch).bg-blue-700,
+html[data-vision-mode="tritanopia"] a:not(.palette-swatch).bg-blue-800,
+html[data-vision-mode="tritanopia"] div.bg-blue-700,
+html[data-vision-mode="tritanopia"] .bg-blue-600:not(.palette-swatch),
+html[data-vision-mode="tritanopia"] .bg-blue-700:not(.palette-swatch),
+html[data-vision-mode="tritanopia"] .bg-blue-800:not(.palette-swatch),
+html.cb-tritanopia button:not(.palette-swatch).bg-blue-600,
+html.cb-tritanopia button:not(.palette-swatch).bg-blue-700,
+html.cb-tritanopia button:not(.palette-swatch).bg-blue-800,
+html.cb-tritanopia a:not(.palette-swatch).bg-blue-600,
+html.cb-tritanopia a:not(.palette-swatch).bg-blue-700,
+html.cb-tritanopia a:not(.palette-swatch).bg-blue-800,
+html.cb-tritanopia div.bg-blue-700,
+html.cb-tritanopia .bg-blue-600:not(.palette-swatch),
+html.cb-tritanopia .bg-blue-700:not(.palette-swatch),
+html.cb-tritanopia .bg-blue-800:not(.palette-swatch) {
+  background-color: #e11d48 !important;
+  color: #ffffff !important;
+}
+
+html[data-vision-mode="tritanopia"] button.bg-blue-600:hover,
+html[data-vision-mode="tritanopia"] button.bg-blue-700:hover,
+html[data-vision-mode="tritanopia"] a.bg-blue-600:hover,
+html[data-vision-mode="tritanopia"] a.bg-blue-700:hover,
+html.cb-tritanopia button.bg-blue-600:hover,
+html.cb-tritanopia button.bg-blue-700:hover,
+html.cb-tritanopia a.bg-blue-600:hover,
+html.cb-tritanopia a.bg-blue-700:hover {
+  background-color: #be123c !important;
+}
+
+/* Primary text & links */
+html[data-vision-mode="tritanopia"] .text-blue-600,
+html[data-vision-mode="tritanopia"] .text-blue-700,
+html[data-vision-mode="tritanopia"] .text-blue-800,
+html[data-vision-mode="tritanopia"] .text-blue-900,
+html.cb-tritanopia .text-blue-600,
+html.cb-tritanopia .text-blue-700,
+html.cb-tritanopia .text-blue-800,
+html.cb-tritanopia .text-blue-900 {
+  color: #e11d48 !important;
+}
+
+html.dark[data-vision-mode="tritanopia"] .text-blue-300,
+html.dark[data-vision-mode="tritanopia"] .text-blue-400,
+html.dark.cb-tritanopia .text-blue-300,
+html.dark.cb-tritanopia .text-blue-400 {
+  color: #fb7185 !important;
+}
+
+/* Primary light badges & containers */
+html[data-vision-mode="tritanopia"] .bg-blue-50,
+html[data-vision-mode="tritanopia"] .bg-blue-100,
+html.cb-tritanopia .bg-blue-50,
+html.cb-tritanopia .bg-blue-100 {
+  background-color: #fff1f2 !important;
+  border-color: #fecdd3 !important;
+  color: #9f1239 !important;
+}
+
+html.dark[data-vision-mode="tritanopia"] [class*="bg-blue-950"],
+html.dark.cb-tritanopia [class*="bg-blue-950"] {
+  background-color: rgba(225, 29, 72, 0.25) !important;
+  border-color: rgba(251, 113, 133, 0.4) !important;
+  color: #fda4af !important;
+}
+
+html[data-vision-mode="tritanopia"] .border-blue-200,
+html[data-vision-mode="tritanopia"] .border-blue-300,
+html[data-vision-mode="tritanopia"] .border-blue-500,
+html[data-vision-mode="tritanopia"] .border-blue-600,
+html.cb-tritanopia .border-blue-200,
+html.cb-tritanopia .border-blue-300,
+html.cb-tritanopia .border-blue-500,
+html.cb-tritanopia .border-blue-600 {
+  border-color: #e11d48 !important;
+}
+
+/* Success / Matched / Ready -> Deep Mint */
+html[data-vision-mode="tritanopia"] button:not(.palette-swatch).bg-emerald-600,
+html[data-vision-mode="tritanopia"] button:not(.palette-swatch).bg-emerald-500,
+html[data-vision-mode="tritanopia"] .bg-emerald-600:not(.palette-swatch),
+html[data-vision-mode="tritanopia"] .bg-emerald-500:not(.palette-swatch),
+html.cb-tritanopia button:not(.palette-swatch).bg-emerald-600,
+html.cb-tritanopia button:not(.palette-swatch).bg-emerald-500,
+html.cb-tritanopia .bg-emerald-600:not(.palette-swatch),
+html.cb-tritanopia .bg-emerald-500:not(.palette-swatch) {
+  background-color: #059669 !important;
+  color: #ffffff !important;
+}
+
+html[data-vision-mode="tritanopia"] .text-emerald-600,
+html[data-vision-mode="tritanopia"] .text-emerald-700,
+html[data-vision-mode="tritanopia"] .text-emerald-800,
+html.cb-tritanopia .text-emerald-600,
+html.cb-tritanopia .text-emerald-700,
+html.cb-tritanopia .text-emerald-800 {
+  color: #047857 !important;
+}
+
+html.dark[data-vision-mode="tritanopia"] .text-emerald-300,
+html.dark[data-vision-mode="tritanopia"] .text-emerald-400,
+html.dark.cb-tritanopia .text-emerald-300,
+html.dark.cb-tritanopia .text-emerald-400 {
+  color: #34d399 !important;
+}
+
+html[data-vision-mode="tritanopia"] .bg-emerald-50,
+html[data-vision-mode="tritanopia"] .bg-emerald-100,
+html.cb-tritanopia .bg-emerald-50,
+html.cb-tritanopia .bg-emerald-100 {
+  background-color: #ecfdf5 !important;
+  border-color: #a7f3d0 !important;
+  color: #065f46 !important;
+}
+
+html.dark[data-vision-mode="tritanopia"] [class*="bg-emerald-950"],
+html.dark.cb-tritanopia [class*="bg-emerald-950"] {
+  background-color: rgba(5, 150, 105, 0.25) !important;
+  border-color: rgba(52, 211, 153, 0.4) !important;
+  color: #6ee7b7 !important;
+}
+
+html[data-vision-mode="tritanopia"] .border-emerald-200,
+html[data-vision-mode="tritanopia"] .border-emerald-300,
+html.cb-tritanopia .border-emerald-200,
+html.cb-tritanopia .border-emerald-300 {
+  border-color: #6ee7b7 !important;
+}
+
+/* Warning / Error / Mismatch / Conditional -> Dark Maroon / Garnet */
+html[data-vision-mode="tritanopia"] .bg-rose-600:not(.palette-swatch),
+html[data-vision-mode="tritanopia"] .bg-rose-500:not(.palette-swatch),
+html[data-vision-mode="tritanopia"] .bg-red-600,
+html[data-vision-mode="tritanopia"] .bg-amber-600:not(.palette-swatch),
+html[data-vision-mode="tritanopia"] .bg-amber-500:not(.palette-swatch),
+html.cb-tritanopia .bg-rose-600:not(.palette-swatch),
+html.cb-tritanopia .bg-rose-500:not(.palette-swatch),
+html.cb-tritanopia .bg-red-600,
+html.cb-tritanopia .bg-amber-600:not(.palette-swatch),
+html.cb-tritanopia .bg-amber-500:not(.palette-swatch) {
+  background-color: #9f1239 !important;
+  color: #ffffff !important;
+}
+
+html[data-vision-mode="tritanopia"] .text-rose-600,
+html[data-vision-mode="tritanopia"] .text-rose-700,
+html[data-vision-mode="tritanopia"] .text-rose-800,
+html[data-vision-mode="tritanopia"] .text-red-600,
+html[data-vision-mode="tritanopia"] .text-amber-600,
+html[data-vision-mode="tritanopia"] .text-amber-700,
+html[data-vision-mode="tritanopia"] .text-amber-800,
+html.cb-tritanopia .text-rose-600,
+html.cb-tritanopia .text-rose-700,
+html.cb-tritanopia .text-rose-800,
+html.cb-tritanopia .text-red-600,
+html.cb-tritanopia .text-amber-600,
+html.cb-tritanopia .text-amber-700,
+html.cb-tritanopia .text-amber-800 {
+  color: #881337 !important;
+}
+
+html.dark[data-vision-mode="tritanopia"] .text-rose-300,
+html.dark[data-vision-mode="tritanopia"] .text-rose-400,
+html.dark[data-vision-mode="tritanopia"] .text-amber-300,
+html.dark[data-vision-mode="tritanopia"] .text-amber-400,
+html.dark.cb-tritanopia .text-rose-300,
+html.dark.cb-tritanopia .text-rose-400,
+html.dark.cb-tritanopia .text-amber-300,
+html.dark.cb-tritanopia .text-amber-400 {
+  color: #fda4af !important;
+}
+
+html[data-vision-mode="tritanopia"] .bg-rose-50,
+html[data-vision-mode="tritanopia"] .bg-rose-100,
+html[data-vision-mode="tritanopia"] .bg-amber-50,
+html[data-vision-mode="tritanopia"] .bg-amber-100,
+html.cb-tritanopia .bg-rose-50,
+html.cb-tritanopia .bg-rose-100,
+html.cb-tritanopia .bg-amber-50,
+html.cb-tritanopia .bg-amber-100 {
+  background-color: #fff1f2 !important;
+  border-color: #fda4af !important;
+  color: #881337 !important;
+}
+
+html.dark[data-vision-mode="tritanopia"] [class*="bg-rose-950"],
+html.dark[data-vision-mode="tritanopia"] [class*="bg-amber-950"],
+html.dark.cb-tritanopia [class*="bg-rose-950"],
+html.dark.cb-tritanopia [class*="bg-amber-950"] {
+  background-color: rgba(159, 18, 57, 0.25) !important;
+  border-color: rgba(253, 164, 175, 0.4) !important;
+  color: #fda4af !important;
+}
+
+html[data-vision-mode="tritanopia"] .border-rose-200,
+html[data-vision-mode="tritanopia"] .border-rose-300,
+html[data-vision-mode="tritanopia"] .border-amber-200,
+html[data-vision-mode="tritanopia"] .border-amber-300,
+html.cb-tritanopia .border-rose-200,
+html.cb-tritanopia .border-rose-300,
+html.cb-tritanopia .border-amber-200,
+html.cb-tritanopia .border-amber-300 {
+  border-color: #9f1239 !important;
+}
+
+/* Service Card & Interaction */
+html[data-vision-mode="tritanopia"] .service-card-pop:hover,
+html.cb-tritanopia .service-card-pop:hover {
+  border-color: #e11d48 !important;
+  box-shadow: 0 12px 26px -6px rgba(225, 29, 72, 0.25) !important;
+}
+
+html[data-vision-mode="tritanopia"] :focus-visible,
+html.cb-tritanopia :focus-visible,
+html[data-vision-mode="tritanopia"] .service-card-pop:focus-visible,
+html.cb-tritanopia .service-card-pop:focus-visible {
+  outline: 2px solid #f43f5e !important;
+  outline-offset: 2px !important;
+}
+
+html[data-vision-mode="tritanopia"] input:focus,
+html[data-vision-mode="tritanopia"] textarea:focus,
+html[data-vision-mode="tritanopia"] select:focus,
+html.cb-tritanopia input:focus,
+html.cb-tritanopia textarea:focus,
+html.cb-tritanopia select:focus {
+  border-color: #e11d48 !important;
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.35) !important;
+}
+
+
+/* --------------------------------------------------------------------------
+   4. HIGH CONTRAST MODE (Pure Stark Contrast & Elevated Boundaries)
+   Thick distinct 2px borders, deep contrast black/white surfaces, yellow focus
+   -------------------------------------------------------------------------- */
+html[data-vision-mode="high-contrast"],
+html.cb-high-contrast,
+html.high-contrast {
+  --cv-focus: #facc15;
+}
+
+/* Light mode high contrast surfaces & borders */
+html[data-vision-mode="high-contrast"]:not(.dark) .service-card-pop,
+html.cb-high-contrast:not(.dark) .service-card-pop,
+html.high-contrast:not(.dark) .service-card-pop {
+  border: 2px solid #0f172a !important;
+}
+
+html[data-vision-mode="high-contrast"]:not(.dark) input,
+html[data-vision-mode="high-contrast"]:not(.dark) select,
+html[data-vision-mode="high-contrast"]:not(.dark) textarea,
+html.cb-high-contrast:not(.dark) input,
+html.cb-high-contrast:not(.dark) select,
+html.cb-high-contrast:not(.dark) textarea,
+html.high-contrast:not(.dark) input,
+html.high-contrast:not(.dark) select,
+html.high-contrast:not(.dark) textarea {
+  border: 2px solid #0f172a !important;
+  color: #000000 !important;
+}
+
+/* Dark mode high contrast surfaces & borders */
+html.dark[data-vision-mode="high-contrast"] .service-card-pop,
+html.dark.cb-high-contrast .service-card-pop,
+html.dark.high-contrast .service-card-pop {
+  border: 2px solid #ffffff !important;
+}
+
+html.dark[data-vision-mode="high-contrast"] input,
+html.dark[data-vision-mode="high-contrast"] select,
+html.dark[data-vision-mode="high-contrast"] textarea,
+html.dark.cb-high-contrast input,
+html.dark.cb-high-contrast select,
+html.dark.cb-high-contrast textarea,
+html.dark.high-contrast input,
+html.dark.high-contrast select,
+html.dark.high-contrast textarea {
+  border: 2px solid #ffffff !important;
+  color: #ffffff !important;
+}
+
+/* High contrast badges & pills */
+html[data-vision-mode="high-contrast"] span[class*="rounded-"],
+html.cb-high-contrast span[class*="rounded-"],
+html.high-contrast span[class*="rounded-"] {
+  border-width: 1.5px !important;
+  font-weight: 700 !important;
+}
+
+/* Focus indicators across High Contrast */
+html[data-vision-mode="high-contrast"] :focus-visible,
+html.cb-high-contrast :focus-visible,
+html.high-contrast :focus-visible,
+html[data-vision-mode="high-contrast"] .service-card-pop:focus-visible,
+html.cb-high-contrast .service-card-pop:focus-visible,
+html.high-contrast .service-card-pop:focus-visible {
+  outline: 3px solid #facc15 !important;
+  outline-offset: 3px !important;
+}
+
+/* Buttons in High Contrast */
+html[data-vision-mode="high-contrast"] button,
 html.cb-high-contrast button,
-html.cb-high-contrast a,
-html.cb-high-contrast input,
-html.cb-high-contrast select,
-html.cb-high-contrast textarea {
-  outline-offset: 2px;
-}
+html.high-contrast button,
+html[data-vision-mode="high-contrast"] a.inline-flex,
+html.cb-high-contrast a.inline-flex,
+html.high-contrast a.inline-flex {
+  font-weight: 700 !important;
+}
+

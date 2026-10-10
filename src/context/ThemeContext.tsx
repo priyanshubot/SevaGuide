@@ -44,6 +44,9 @@ const applyColorVisionToDOM = (mode: ColorVisionMode) => {
   const root = document.documentElement;
   root.classList.remove('cb-protanopia', 'cb-deuteranopia', 'cb-tritanopia', 'cb-high-contrast', 'high-contrast');
 
+  const visionModeValue = mode === 'none' ? 'default' : mode;
+  root.setAttribute('data-vision-mode', visionModeValue);
+
   if (mode === 'protanopia') {
     root.classList.add('cb-protanopia');
   } else if (mode === 'deuteranopia') {
@@ -171,41 +174,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setColorVisionMode
       }}
     >
-      {/* Global SVG Color Vision feColorMatrix Filters */}
-      <svg style={{ display: 'none', position: 'absolute', width: 0, height: 0 }} aria-hidden="true">
-        <defs>
-          {/* Protanopia (Red-blind / Red-weak) */}
-          <filter id="protanopia-filter" colorInterpolationFilters="sRGB">
-            <feColorMatrix
-              type="matrix"
-              values="0.56667 0.43333 0.00000 0 0
-                      0.55833 0.44167 0.00000 0 0
-                      0.00000 0.24167 0.75833 0 0
-                      0       0       0       1 0"
-            />
-          </filter>
-          {/* Deuteranopia (Green-blind / Green-weak) */}
-          <filter id="deuteranopia-filter" colorInterpolationFilters="sRGB">
-            <feColorMatrix
-              type="matrix"
-              values="0.62500 0.37500 0.00000 0 0
-                      0.70000 0.30000 0.00000 0 0
-                      0.00000 0.30000 0.70000 0 0
-                      0       0       0       1 0"
-            />
-          </filter>
-          {/* Tritanopia (Blue-yellow blind / Blue-weak) */}
-          <filter id="tritanopia-filter" colorInterpolationFilters="sRGB">
-            <feColorMatrix
-              type="matrix"
-              values="0.95000 0.05000 0.00000 0 0
-                      0.00000 0.43333 0.56667 0 0
-                      0.00000 0.47500 0.52500 0 0
-                      0       0       0       1 0"
-            />
-          </filter>
-        </defs>
-      </svg>
       {children}
     </ThemeContext.Provider>
   );

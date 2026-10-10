@@ -33,7 +33,26 @@
               document.documentElement.style.setProperty('--app-magnification', val + '%');
             }
           }
-          if (localStorage.getItem('sevaguide_high_contrast') === 'true') {
+
+          // Pre-render color vision accessibility mode to prevent FOUC
+          var cvMode = localStorage.getItem('sevaguide_color_vision_mode');
+          var legacyContrast = localStorage.getItem('sevaguide_high_contrast') === 'true';
+          if (!cvMode && legacyContrast) {
+            cvMode = 'high-contrast';
+          }
+          if (cvMode && cvMode !== 'none' && cvMode !== 'default') {
+            document.documentElement.setAttribute('data-vision-mode', cvMode);
+            if (cvMode === 'protanopia') document.documentElement.classList.add('cb-protanopia');
+            if (cvMode === 'deuteranopia') document.documentElement.classList.add('cb-deuteranopia');
+            if (cvMode === 'tritanopia') document.documentElement.classList.add('cb-tritanopia');
+            if (cvMode === 'high-contrast') {
+              document.documentElement.classList.add('cb-high-contrast', 'high-contrast');
+            }
+          } else {
+            document.documentElement.setAttribute('data-vision-mode', 'default');
+          }
+
+          if (localStorage.getItem('sevaguide_high_contrast') === 'true' && !document.documentElement.classList.contains('high-contrast')) {
             document.documentElement.classList.add('high-contrast');
           }
           if (localStorage.getItem('sevaguide_reduced_motion') === 'true') {

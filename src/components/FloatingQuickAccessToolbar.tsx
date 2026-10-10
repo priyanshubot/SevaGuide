@@ -134,6 +134,7 @@ export const FloatingQuickAccessToolbar: React.FC<FloatingQuickAccessToolbarProp
     setReducedMotion(false);
     setColorVisionMode('none');
     setTheme('system');
+    document.documentElement.setAttribute('data-vision-mode', 'default');
     document.documentElement.classList.remove(
       'high-contrast',
       'reduce-motion',
@@ -710,7 +711,7 @@ export const FloatingQuickAccessToolbar: React.FC<FloatingQuickAccessToolbarProp
                           {palette.swatches.map((swatch, idx) => (
                             <span
                               key={idx}
-                              className={`w-3.5 h-3.5 rounded-full border border-white dark:border-zinc-900 shadow-2xs ${swatch}`}
+                              className={`palette-swatch w-3.5 h-3.5 rounded-full border border-white dark:border-zinc-900 shadow-2xs ${swatch}`}
                             />
                           ))}
                         </div>

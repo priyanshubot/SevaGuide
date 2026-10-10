@@ -1,7 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { SERVICES_DATA } from '../data/services';
 import { ServiceCard } from '../components/ServiceCard';
-import { Search, X, SlidersHorizontal, Info } from 'lucide-react';
+import { Search, X, SlidersHorizontal, Info, ChevronDown, ChevronUp } from 'lucide-react';
+
+const INITIAL_VISIBLE_COUNT = 6;
 
 const CATEGORIES = [
   'All',
@@ -16,6 +18,12 @@ const CATEGORIES = [
 export const Services: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Reset expanded state whenever search term or category changes
+  useEffect(() => {
+    setIsExpanded(false);
+  }, [searchTerm, selectedCategory]);
 
   // Filter services by search term and category
   const filteredServices = useMemo(() => {
@@ -51,6 +59,14 @@ export const Services: React.FC = () => {
     });
     return counts;
   }, []);
+
+  // Sliced services to display (first 6 initially, or all when expanded)
+  const visibleServices = useMemo(() => {
+    if (isExpanded || filteredServices.length <= INITIAL_VISIBLE_COUNT) {
+      return filteredServices;
+    }
+    return filteredServices.slice(0, INITIAL_VISIBLE_COUNT);
+  }, [filteredServices, isExpanded]);
 
   return (
     <div className="space-y-8">
@@ -138,8 +154,16 @@ export const Services: React.FC = () => {
       {/* Services Count Bar */}
       <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
         <span>
-          Showing <strong className="text-slate-900 dark:text-white">{filteredServices.length}</strong> of{' '}
-          {SERVICES_DATA.length} services
+          Showing{' '}
+          <strong className="text-slate-900 dark:text-white">
+            {!isExpanded && filteredServices.length > INITIAL_VISIBLE_COUNT
+              ? `${INITIAL_VISIBLE_COUNT} of ${filteredServices.length}`
+              : filteredServices.length}
+          </strong>{' '}
+          services
+          {filteredServices.length < SERVICES_DATA.length && (
+            <span> ({SERVICES_DATA.length} total)</span>
+          )}
           {selectedCategory !== 'All' && ` in ${selectedCategory}`}
           {searchTerm && ` matching "${searchTerm}"`}
         </span>
@@ -184,10 +208,32 @@ export const Services: React.FC = () => {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredServices.map((service) => (
-            <ServiceCard key={service.id} service={service} />
-          ))}
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {visibleServices.map((service) => (
+              <ServiceCard key={service.id} service={service} />
+            ))}
+          </div>
+
+          {/* Show More / Show Less Toggle Button */}
+          {filteredServices.length > INITIAL_VISIBLE_COUNT && (
+            <div className="flex justify-center pt-2">
+              <button
+                type="button"
+                onClick={() => setIsExpanded((prev) => !prev)}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-800 dark:text-slate-200 font-semibold text-xs sm:text-sm shadow-xs transition hover:border-slate-300 dark:hover:border-zinc-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 cursor-pointer"
+                aria-expanded={isExpanded}
+                aria-label={isExpanded ? 'Show less services' : 'Show more services'}
+              >
+                <span>{isExpanded ? 'Show Less' : 'Show More'}</span>
+                {isExpanded ? (
+                  <ChevronUp className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                )}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
