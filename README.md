@@ -9,6 +9,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4.13-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-Auth_%26_Postgres-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
 [![Tesseract.js](https://img.shields.io/badge/OCR-Tesseract.js_7.0-blue)](https://tesseract.projectnaptha.com/)
+[![AI Assistant](https://img.shields.io/badge/AI_Assistant-Privacy--First_Civic_LLM-orange)](#-sevaguide-ai-assistant--backend-architecture)
 
 ---
 
@@ -25,7 +26,7 @@
   - [4. Citizen Document Vault & Application Tracking](#4-citizen-document-vault--application-tracking)
   - [5. Floating Quick-Access Toolbar](#5-floating-quick-access-toolbar)
   - [6. Global Color Vision Accessibility Suite](#6-global-color-vision-accessibility-suite)
-  - [7. SevaGuide AI Civic Assistant Prototype](#7-sevaguide-ai-civic-assistant-prototype)
+  - [7. SevaGuide AI Civic Assistant](#7-sevaguide-ai-civic-assistant)
   - [8. Office Locator & Nearby Seva Kendras](#8-office-locator--nearby-seva-kendras)
 - [System Architecture](#-system-architecture)
   - [Architecture Diagram](#architecture-diagram)
@@ -41,7 +42,11 @@
   - [1. Execute Schema Migration](#1-execute-schema-migration)
   - [2. Storage Bucket Configuration](#2-storage-bucket-configuration)
   - [3. Row Level Security (RLS) Policies](#3-row-level-security-rls-policies)
-- [AI Assistant & Gemini Integration Roadmap](#-ai-assistant--gemini-integration-roadmap)
+- [SevaGuide AI Assistant & Backend Architecture](#-sevaguide-ai-assistant--backend-architecture)
+  - [Dual Backend Routing & Fallback](#dual-backend-routing--fallback)
+  - [Security & PII Sanitization](#security--pii-sanitization)
+  - [Rate-Limit & Quota Resilience Strategy](#rate-limit--quota-resilience-strategy)
+  - [Configuration Guide](#configuration-guide)
 - [Deployment Guide (Vercel)](#-deployment-guide-vercel)
 - [Document Verification Disclaimer](#-document-verification-disclaimer)
 - [Project Directory Structure](#-project-directory-structure)
@@ -178,12 +183,16 @@ SevaGuide implements a comprehensive color vision deficiency system engineered w
 - **AMOLED Pitch Dark Mode**: Battery-saving, pure black `#000000` dark theme.
 - **FOUC Prevention**: Synchronous pre-render script in `index.html` inspects `localStorage` and applies `data-vision-mode` and `.dark` before the first paint.
 
-### 7. SevaGuide AI Civic Assistant Prototype
+### 7. SevaGuide AI Civic Assistant
 
-A context-aware slide-out assistant (`AIAssistantDrawer.tsx` powered by `src/services/ai.ts`):
-- Provides instant answers regarding required documents, mismatch resolution, Gazette affidavit procedures, and office timings.
-- Automatically inherits the active service context (e.g. informing the user specifically about PAN or Passport rules based on their current page).
-- Implemented as a safe, client-side civic rules engine. *See [AI Assistant & Gemini Integration Roadmap](#-ai-assistant--gemini-integration-roadmap) for details on backend LLM architecture.*
+A fully integrated, privacy-focused conversational civic advisor accessible across the entire application:
+- **Circular Floating Launcher**: Elegant bottom-right bubble with a pulsing status badge, screen-reader accessibility (`aria-label`), and seamless integration with the floating toolbar.
+- **Dynamic Context Awareness**: Automatically inherits active service context (`activeServiceId`, `activeServiceName`, `activeServiceCategory`) when browsing services or verification workflows.
+- **Client & Server PII Redaction**: Automatically scrubs 12-digit Aadhaar and 10-character PAN identifiers before transmission, warning users with a prominent privacy badge.
+- **Multi-Model Fallback Cascade**: Built with resilient server-side fallback across verified free models (`google/gemma-4-31b-it:free`, `nvidia/nemotron-3.5-lightning:free`, `google/gemma-4-26b-a4b-it:free`, `openrouter/free`).
+- **Bounded Rate-Limit & Quota Handling**: Parses `Retry-After` headers with bounded exponential backoff; distinguishes between temporary provider busy states and daily free quota exhaustion (`DAILY_QUOTA_EXHAUSTED`).
+- **Duplicate Request Guard**: Implements synchronous submit locks (`isSubmittingRef`) to eliminate duplicate requests caused by accidental double-clicks or rapid enter keys.
+- **Rich Civic Formatting**: Renders markdown bullet lists, bold terminology, government portal links, message copy buttons, suggested question chips, and session-preserved conversation history (`sessionStorage`). *See [SevaGuide AI Assistant & Backend Architecture](#-sevaguide-ai-assistant--backend-architecture) for full architecture and configuration.*
 
 ### 8. Office Locator & Nearby Seva Kendras
 
@@ -211,8 +220,13 @@ flowchart TD
         subgraph ClientEngines["Client-Side Processing"]
             OCR["Tesseract.js (WASM Worker)"]
             DocVerify["PAN & Name Verification Engine"]
-            AIChat["SevaGuide AI Assistant (Prototype)"]
+            AIChat["AIAssistantDrawer (UI + Client PII Scrubbing)"]
         end
+    end
+
+    subgraph ServerlessAndEdge["Serverless & Edge Backend Layer"]
+        SupabaseEdge["Supabase Edge Function: /functions/v1/chat"]
+        VercelAPI["Vercel Serverless Function: /api/chat"]
     end
 
     subgraph SupabaseBaaS["Supabase Backend-as-a-Service"]
@@ -230,6 +244,11 @@ flowchart TD
         end
     end
 
+    subgraph AIProviders["AI Chat Completions Layer"]
+        LLM["AI Chat Completions API"]
+        ModelCascade["Verified Free Models Cascade<br/>- google/gemma-4-31b-it:free<br/>- nvidia/nemotron-3.5-lightning:free<br/>- google/gemma-4-26b-a4b-it:free<br/>- openrouter/free"]
+    end
+
     subgraph ExternalServices["External Civic Integrations"]
         OSM["OpenStreetMap / Leaflet Embed"]
         GovPortals["Official Gov Portals (UIDAI, Passport, Parivahan)"]
@@ -240,6 +259,12 @@ flowchart TD
     Router --> AIChat
     DocVerify --> OCR
     
+    AIChat -. "Primary route (Supabase client)" .-> SupabaseEdge
+    AIChat -. "Fallback route (HTTP fetch)" .-> VercelAPI
+    SupabaseEdge --> LLM
+    VercelAPI --> LLM
+    LLM --- ModelCascade
+
     AuthCtx --> AuthService
     AuthCtx --> PostgresDB
     UI --> StorageService
@@ -256,6 +281,7 @@ flowchart TD
 1. **Client-First Security**: Citizen documents uploaded to storage are isolated by PostgreSQL RLS policies where `auth.uid() = (storage.foldername(name))[1]`. No user can view or modify another citizen's files.
 2. **Zero-Friction Fallback**: Core features—such as the service directory, readiness checklist, demo verification, and OpenStreetMap locator—operate completely client-side without mandatory backend logins or proprietary paid API keys.
 3. **Static Build Inlining**: Supabase connection parameters are integrated via Vite's build-time `define` configuration, ensuring compatibility across cloud static hosting platforms like Vercel.
+4. **Privacy-Preserving AI Processing**: Personal citizen PII (Aadhaar, PAN) is scrubbed client-side before transmission. The backend uses verified free LLM models exclusively via serverless edge functions, ensuring zero API key exposure in browser client bundles.
 
 ---
 
@@ -270,6 +296,8 @@ flowchart TD
 | **Icons** | [Lucide React](https://lucide.dev/) | `^0.344.0` | Accessible SVG icon suite |
 | **Routing** | [React Router DOM](https://reactrouter.com/) | `^6.26.0` | Declarative client-side routing |
 | **Backend & Database** | [Supabase](https://supabase.com/) | `^2.117.3` | Authentication, PostgreSQL with RLS, Private Storage |
+| **Serverless & Edge AI** | Supabase Edge Functions & Vercel Functions | Deno / Node.js | Dual-route AI chat backend with rate-limiting & free model cascade |
+| **AI LLM Orchestration** | Verified Free Models Cascade | OpenRouter Free API | `google/gemma-4-31b-it:free`, `nvidia/nemotron-3.5-lightning:free` |
 | **Client OCR Engine** | [Tesseract.js](https://tesseract.projectnaptha.com/) | `^7.0.0` | In-browser WebAssembly OCR for image text extraction |
 | **CSS Processing** | PostCSS & Autoprefixer | `^8.4.47` / `^10.4.20` | Vendor prefixing and CSS transformation |
 | **Geospatial & Mapping** | OpenStreetMap / Google Maps | N/A | Interactive office location embeds and directions |
@@ -289,8 +317,8 @@ Ensure you have the following installed on your machine:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/<your-username>/HackBios.git
-   cd HackBios
+   git clone https://github.com/priyanshubot/SevaGuide.git
+   cd SevaGuide
    ```
 
 2. **Install project dependencies:**
@@ -309,6 +337,11 @@ Ensure you have the following installed on your machine:
    SUPABASE_ANON_KEY=your-anon-key-here
    # Optional: Google Maps Embed API Key (Leave empty to use free OpenStreetMap)
    VITE_GOOGLE_MAPS_API_KEY=
+
+   # Optional: Server-side AI Assistant API Key (Set in Supabase Secrets or Serverless environment; NEVER use VITE_ prefix)
+   # OPENROUTER_API_KEY=your-openrouter-api-key-here
+   # Optional: Model override (Defaults to google/gemma-4-31b-it:free)
+   # OPENROUTER_MODEL=google/gemma-4-31b-it:free
    ```
 
 4. **Initialize Supabase database:**
@@ -335,11 +368,13 @@ Ensure you have the following installed on your machine:
 
 ### Environment Variables
 
-| Variable Name | Required | Description |
-| :--- | :---: | :--- |
-| `SUPABASE_URL` | **Yes** | Your Supabase project URL (`https://<project-ref>.supabase.co`). |
-| `SUPABASE_ANON_KEY` | **Yes** | The public/anon API key for Supabase. Safe for client exposure under PostgreSQL RLS. |
-| `VITE_GOOGLE_MAPS_API_KEY` | *Optional* | Google Maps Embed API key. If omitted, SevaGuide automatically uses OpenStreetMap. |
+| Variable Name | Required | Scope | Description |
+| :--- | :---: | :---: | :--- |
+| `SUPABASE_URL` | **Yes** | Client (Inlined) | Your Supabase project URL (`https://<project-ref>.supabase.co`). |
+| `SUPABASE_ANON_KEY` | **Yes** | Client (Inlined) | The public/anon API key for Supabase. Safe for client exposure under PostgreSQL RLS. |
+| `VITE_GOOGLE_MAPS_API_KEY` | *Optional* | Client | Google Maps Embed API key. If omitted, SevaGuide automatically uses OpenStreetMap. |
+| `OPENROUTER_API_KEY` | *Optional* | Server-side only | API key for the AI civic assistant. Set in Supabase Secrets or Vercel Environment Variables. Never prefix with `VITE_`. |
+| `OPENROUTER_MODEL` | *Optional* | Server-side only | Model ID override for AI chat completions. Defaults to verified free model `google/gemma-4-31b-it:free`. |
 
 ### Vite Environment Variable Architecture
 
@@ -415,53 +450,91 @@ All tables and storage objects have strict Row Level Security enabled:
 
 ---
 
-## 🤖 SevaGuide AI Civic Assistant
+## 🤖 SevaGuide AI Assistant & Backend Architecture
 
-SevaGuide incorporates a dedicated civic assistant (defaulting to the verified free model `google/gemma-4-31b-it:free`), accessible via the circular floating chatbot icon at the bottom-right and the quick-access toolbar.
+SevaGuide incorporates an intelligent, privacy-grounded civic advisor designed to guide citizens through official government requirements, document categories (POI, POA, DOB, POR), and counter readiness.
 
-### Architecture & Security
+### Architecture & Data Flow
 
 ```
 [ Citizen Browser (React SPA) ]
-       │  POST /functions/v1/chat OR /api/chat
-       │  (Masks Aadhaar/PAN PII locally)
+       │  
+       │  1. Client-Side PII Redaction (Masks 12-digit Aadhaar & 10-char PAN)
+       │  2. Injects Active Service Context (Aadhaar, Passport, CG Domicile, etc.)
+       │  3. Invokes Supabase Edge Function with Fallback to Serverless Endpoint
        ▼
-[ Supabase Edge Function (`supabase/functions/chat/index.ts`) ]
-  OR [ Vercel Serverless Function (`api/chat.ts`) ]
-       │  (Server-side secret: OPENROUTER_API_KEY)
-       │  (Injects SevaGuide verified civic data & system prompt)
+   ┌────────────────────────────────────────────────────────┐
+   │                  Backend Routing Layer                 │
+   │                                                        │
+   │  Path A (Primary):                                     │
+   │  Supabase Edge Function (`supabase/functions/chat`)    │
+   │                                                        │
+   │  Path B (Fallback):                                    │
+   │  Vercel Serverless Function (`api/chat.ts`)            │
+   └────────────────────────────────────────────────────────┘
+       │  
+       │  4. Reads server secret: OPENROUTER_API_KEY (never exposed to browser)
+       │  5. Injects verified SevaGuide rules & civic system prompt
+       │  6. Multi-Model Fallback Cascade (Evaluates HTTP 429 & Retry-After)
        ▼
 [ AI Chat Completions Provider ]
+       │
+       ▼
+[ Verified Free Models Cascade ]
+  ├── 1. Primary: google/gemma-4-31b-it:free
+  ├── 2. Fallback 1: nvidia/nemotron-3.5-lightning:free
+  ├── 3. Fallback 2: google/gemma-4-26b-a4b-it:free
+  └── 4. Fallback 3: openrouter/free
 ```
 
-### Security Highlights
-- **Zero Frontend Secret Exposure**: The `OPENROUTER_API_KEY` is exclusively managed on the server side (Supabase Edge Function / Vercel Serverless). It is **never** prefixed with `VITE_` or bundled into browser assets.
-- **Client & Server PII Masking**: Citizen input is scrubbed for 12-digit Aadhaar patterns and 10-character PAN patterns before being forwarded to the backend.
-- **Accurate Civic Grounding**: The assistant inherits verified SevaGuide rules for Central and Chhattisgarh services (fees, required vs. conditional documents, official portal links).
-- **Graceful Error Handling**: If the API key is not configured or rate limits are reached, the UI clearly displays actionable setup steps rather than fabricating simulated responses.
+### Dual Backend Routing & Fallback
 
-### How to Configure `OPENROUTER_API_KEY`
+The assistant employs a resilient dual-tier architecture in [`src/services/ai.ts`](src/services/ai.ts):
+1. **Primary Route**: When connected to Supabase, queries invoke the `chat` Edge Function via `supabase.functions.invoke('chat', ...)`.
+2. **Fallback Route**: If the Supabase Edge Function is not deployed or network unreachable, the client automatically falls back to the serverless `/api/chat` endpoint.
+3. **Local Dev Route**: During `npm run dev`, Vite's built-in development middleware securely proxies requests to `/api/chat` using local server-side environment variables.
 
-1. **Supabase Edge Function (Recommended)**:
-   ```bash
-   # Set your OpenRouter API key in Supabase Secrets
-   supabase secrets set OPENROUTER_API_KEY=your-openrouter-api-key
+### Security & PII Sanitization
 
-   # Optional: Configure model (defaults to google/gemma-4-31b-it:free)
-   supabase secrets set OPENROUTER_MODEL=google/gemma-4-31b-it:free
+- **Zero Client Secret Exposure**: The `OPENROUTER_API_KEY` is strictly managed server-side. It is **never** prefixed with `VITE_` or bundled into browser code or static JavaScript assets.
+- **Client & Server PII Masking**: Citizen queries are scrubbed for 12-digit Aadhaar patterns (`\b\d{4}[ -]?\d{4}[ -]?\d{4}\b`) and 10-character PAN patterns (`\b[A-Z]{5}[0-9]{4}[A-Z]{1}\b`) both before client transmission and upon backend receipt. A privacy notice banner is displayed whenever sensitive data is redacted.
+- **Strict Free-Model Enforcement**: The backend strictly validates candidate models against a whitelist of verified free models (`:free`). It **never** silently cascades to paid endpoints.
+- **Error Sanitization**: Upstream provider error messages are regex-sanitized (`.replace(/openrouter/gi, 'AI assistant')`) before returning to the frontend to ensure clean civic branding.
 
-   # Deploy the chat edge function
-   supabase functions deploy chat --no-verify-jwt
-   ```
+### Rate-Limit & Quota Resilience Strategy
 
-2. **Vercel Serverless Deployment**:
-   - In your Vercel Project Dashboard, navigate to **Settings** ➔ **Environment Variables**.
-   - Add `OPENROUTER_API_KEY` with your key from [OpenRouter](https://openrouter.ai/keys).
-   - Optionally add `OPENROUTER_MODEL` (e.g. `google/gemma-4-31b-it:free`).
-   - Redeploy the application.
+Free AI model tiers occasionally encounter upstream provider throttling. SevaGuide handles these transparently:
+- **`Retry-After` Header Parsing**: Inspects upstream response headers for standard rate-limit intervals.
+- **Bounded Backoff**: If throttled (`HTTP 429`), the backend delays for the requested duration (capped at 3 seconds) and retries once before advancing to the next fallback free model.
+- **Daily Quota Classification**: Differentiates between temporary concurrency throttling and account-level daily limit exhaustion (`error_type: "daily_limit"`, `DAILY_QUOTA_EXHAUSTED`). If the daily quota is exhausted, the UI informs the citizen directly and suppresses the retry button to avoid wasteful queries.
+- **Duplicate Request Lock**: Uses a synchronous `isSubmittingRef` lock in `handleSend` to prevent multiple simultaneous requests from rapid button clicks or keyboard presses.
 
-3. **Local Development**:
-   - Provide `OPENROUTER_API_KEY=your_key` in your server environment before running `npm run dev`. The Vite dev server securely handles `/api/chat` without exposing the key to the frontend.
+### Configuration Guide
+
+#### 1. Supabase Edge Function (Recommended)
+```bash
+# Set your AI API key in Supabase Secrets
+supabase secrets set OPENROUTER_API_KEY=your-api-key-here
+
+# Optional: Set preferred model (defaults to google/gemma-4-31b-it:free)
+supabase secrets set OPENROUTER_MODEL=google/gemma-4-31b-it:free
+
+# Deploy the chat function
+supabase functions deploy chat --no-verify-jwt
+```
+
+#### 2. Vercel Serverless Deployment
+1. Navigate to your Vercel Project Dashboard ➔ **Settings** ➔ **Environment Variables**.
+2. Add `OPENROUTER_API_KEY` with your secret key from your AI provider.
+3. *(Optional)* Add `OPENROUTER_MODEL` (e.g. `google/gemma-4-31b-it:free`).
+4. Redeploy the application.
+
+#### 3. Local Development (Vite Dev Server)
+Provide `OPENROUTER_API_KEY=your_key` in your environment or `.env` before running:
+```bash
+npm run dev
+```
+The Vite development server's internal middleware handles `/api/chat` requests directly without exposing the key to the browser bundle.
 
 ---
 
@@ -475,7 +548,7 @@ SevaGuide is optimized for deployment on [Vercel](https://vercel.com/):
 2. **Import Project in Vercel**:
    - Go to your [Vercel Dashboard](https://vercel.com/dashboard).
    - Click **Add New...** ➔ **Project**.
-   - Select your `HackBios` repository and click **Import**.
+   - Select your `SevaGuide` repository and click **Import**.
 
 3. **Configure Project Settings**:
    - **Framework Preset**: `Vite`
@@ -487,6 +560,8 @@ SevaGuide is optimized for deployment on [Vercel](https://vercel.com/):
    Under **Environment Variables**, add:
    - `SUPABASE_URL` = `https://<your-project>.supabase.co`
    - `SUPABASE_ANON_KEY` = `<your-supabase-anon-key>`
+   - `OPENROUTER_API_KEY` = `<your-ai-api-key>` (Secret key for AI civic assistant)
+   - *(Optional)* `OPENROUTER_MODEL` = `google/gemma-4-31b-it:free`
    - *(Optional)* `VITE_GOOGLE_MAPS_API_KEY` = `<your-key-if-applicable>`
 
 5. **Deploy**:
@@ -514,7 +589,7 @@ SevaGuide is optimized for deployment on [Vercel](https://vercel.com/):
 ## 📁 Project Directory Structure
 
 ```
-HackBios/
+SevaGuide/
 ├── .env.example                     # Sample environment variable template
 ├── .gitignore                       # Git ignore list (node_modules, .env, dist)
 ├── index.html                       # HTML entry point with FOUC theme pre-render script
@@ -522,7 +597,9 @@ HackBios/
 ├── postcss.config.js                # PostCSS configuration for Tailwind CSS
 ├── tailwind.config.js               # Tailwind CSS theme and color tokens
 ├── tsconfig.json                    # TypeScript compiler configuration
-├── vite.config.ts                   # Vite bundler configuration with SUPABASE_ envPrefix
+├── vite.config.ts                   # Vite bundler configuration with dev AI chat middleware
+├── api/                             # Serverless API routes
+│   └── chat.ts                      # Vercel Serverless Function (rate-limiting, fallback cascade, PII filter)
 ├── public/                          # Static public assets
 │   ├── favicon.svg                  # Platform favicon
 │   ├── hero-banner.png              # Civic hero illustration
@@ -540,7 +617,10 @@ HackBios/
 │       ├── prateek_aadhar.jpeg      # Sample Aadhaar (Prateek Agrawal)
 │       └── prateek_dl.jpeg          # Sample driving licence (Prateek Agrawal)
 ├── supabase/
-│   └── schema.sql                   # Full PostgreSQL schema, triggers, and RLS policies
+│   ├── schema.sql                   # Full PostgreSQL schema, triggers, and RLS policies
+│   └── functions/
+│       └── chat/
+│           └── index.ts             # Supabase Edge Function (Deno) for AI civic chat completions
 └── src/
     ├── main.tsx                     # React application root entry point
     ├── App.tsx                      # Route definitions and application shell
