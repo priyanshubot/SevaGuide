@@ -249,19 +249,44 @@ export class FamilyDocumentsService {
     localStorage.setItem(getStorageKeyDocs(userId), JSON.stringify(currentDocs));
   }
 
-  // Add document metadata
+  // Add document metadata and upload file to secure private storage if provided
   static async addDocument(
     userId: string,
-    docData: Omit<FamilyDocument, 'id' | 'user_id' | 'updated_at'>
+    docData: Omit<FamilyDocument, 'id' | 'user_id' | 'updated_at'> & { file?: File }
   ): Promise<FamilyDocument> {
     const docId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
     const now = new Date().toISOString();
+    let storagePath: string | undefined = undefined;
+
+    // Secure upload to private 'documents' bucket under user isolation path
+    if (docData.file && isSupabaseConfigured() && userId && userId !== 'demo_citizen_user') {
+      try {
+        const sanitizedFileName = docData.file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        storagePath = `${userId}/family/${docId}/${sanitizedFileName}`;
+        const { error: storageErr } = await supabase.storage
+          .from('documents')
+          .upload(storagePath, docData.file, {
+            contentType: docData.file.type,
+            upsert: true
+          });
+        if (storageErr) {
+          console.warn('Storage upload error for family document:', storageErr.message);
+          storagePath = undefined;
+        }
+      } catch (uploadException) {
+        console.warn('Storage upload exception for family document:', uploadException);
+        storagePath = undefined;
+      }
+    }
+
+    const { file, ...restData } = docData;
 
     const newDoc: FamilyDocument = {
-      ...docData,
+      ...restData,
       id: docId,
       user_id: userId,
-      uploaded_at: docData.uploaded_at || now,
+      storage_path: storagePath || restData.storage_path,
+      uploaded_at: restData.uploaded_at || now,
       updated_at: now
     };
 
@@ -285,15 +310,41 @@ export class FamilyDocumentsService {
   static async updateDocument(
     userId: string,
     docId: string,
-    updates: Partial<FamilyDocument>
+    updates: Partial<FamilyDocument> & { file?: File }
   ): Promise<void> {
     const now = new Date().toISOString();
+    let storagePath = updates.storage_path;
+
+    if (updates.file && isSupabaseConfigured() && userId && userId !== 'demo_citizen_user') {
+      try {
+        const sanitizedFileName = updates.file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        storagePath = `${userId}/family/${docId}/${sanitizedFileName}`;
+        const { error: storageErr } = await supabase.storage
+          .from('documents')
+          .upload(storagePath, updates.file, {
+            contentType: updates.file.type,
+            upsert: true
+          });
+        if (storageErr) {
+          console.warn('Storage upload error during update:', storageErr.message);
+        }
+      } catch (uploadException) {
+        console.warn('Storage upload exception during update:', uploadException);
+      }
+    }
+
+    const { file, ...cleanUpdates } = updates;
+    const finalUpdates = {
+      ...cleanUpdates,
+      ...(storagePath ? { storage_path: storagePath } : {}),
+      updated_at: now
+    };
 
     if (isSupabaseConfigured()) {
       try {
         await supabase
           .from('family_documents')
-          .update({ ...updates, updated_at: now })
+          .update(finalUpdates)
           .eq('id', docId)
           .eq('user_id', userId);
       } catch (err) {
@@ -303,15 +354,22 @@ export class FamilyDocumentsService {
 
     const currentDocs = this.getLocalDocs(userId);
     const updated = currentDocs.map((d) =>
-      d.id === docId ? { ...d, ...updates, updated_at: now } : d
+      d.id === docId ? { ...d, ...finalUpdates } : d
     );
     localStorage.setItem(getStorageKeyDocs(userId), JSON.stringify(updated));
   }
 
-  // Delete document metadata
+  // Delete document metadata and remove file from storage if present
   static async deleteDocument(userId: string, docId: string): Promise<void> {
+    const currentDocs = this.getLocalDocs(userId);
+    const targetDoc = currentDocs.find((d) => d.id === docId);
+
     if (isSupabaseConfigured()) {
       try {
+        if (targetDoc?.storage_path) {
+          await supabase.storage.from('documents').remove([targetDoc.storage_path]);
+        }
+
         await supabase
           .from('family_documents')
           .delete()
@@ -322,8 +380,25 @@ export class FamilyDocumentsService {
       }
     }
 
-    const currentDocs = this.getLocalDocs(userId).filter((d) => d.id !== docId);
-    localStorage.setItem(getStorageKeyDocs(userId), JSON.stringify(currentDocs));
+    const updatedDocs = currentDocs.filter((d) => d.id !== docId);
+    localStorage.setItem(getStorageKeyDocs(userId), JSON.stringify(updatedDocs));
+  }
+
+  // Generate private signed preview URL (valid 3600s)
+  static async getSignedUrl(storagePath: string): Promise<string | null> {
+    if (!storagePath || !isSupabaseConfigured()) return null;
+    try {
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .createSignedUrl(storagePath, 3600);
+      if (error) {
+        console.warn('Failed to create signed URL:', error.message);
+        return null;
+      }
+      return data?.signedUrl || null;
+    } catch {
+      return null;
+    }
   }
 
   // Reset to initial demonstration dataset

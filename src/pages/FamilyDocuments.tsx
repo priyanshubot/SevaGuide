@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Users,
   FileText,
@@ -12,7 +13,9 @@ import {
   RotateCcw,
   Info,
   Check,
-  AlertCircle
+  AlertCircle,
+  ArrowLeft,
+  Maximize2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -32,7 +35,11 @@ import { FamilyMemberModal } from '../components/FamilyMemberModal';
 import { FamilyDocumentModal } from '../components/FamilyDocumentModal';
 import { FamilyMemberDetailModal } from '../components/FamilyMemberDetailModal';
 
-export const FamilyDocuments: React.FC = () => {
+interface FamilyDocumentsProps {
+  embedded?: boolean;
+}
+
+export const FamilyDocuments: React.FC<FamilyDocumentsProps> = ({ embedded = false }) => {
   const { user } = useAuth();
   const userId = user?.id || 'demo_citizen_user';
 
@@ -180,6 +187,7 @@ export const FamilyDocuments: React.FC = () => {
     file_name?: string;
     file_size?: number;
     notes?: string;
+    file?: File;
   }) => {
     if (!docMemberTarget) return;
 
@@ -238,7 +246,7 @@ export const FamilyDocuments: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-200">
+    <div className={embedded ? "space-y-6 animate-in fade-in duration-200" : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-200"}>
       {/* Toast Notification */}
       {toastMessage && (
         <div
@@ -255,6 +263,19 @@ export const FamilyDocuments: React.FC = () => {
             <AlertCircle className="w-4 h-4 text-rose-400" />
           )}
           <span>{toastMessage.text}</span>
+        </div>
+      )}
+
+      {/* Standalone Back Link */}
+      {!embedded && (
+        <div className="flex items-center">
+          <Link
+            to="/profile#family"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 transition"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Back to Accounts Overview</span>
+          </Link>
         </div>
       )}
 
@@ -276,7 +297,17 @@ export const FamilyDocuments: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 self-start md:self-auto">
+        <div className="flex items-center gap-2.5 self-start md:self-auto flex-wrap">
+          {embedded && (
+            <Link
+              to="/family-documents"
+              className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-zinc-900 text-xs font-medium transition flex items-center gap-1.5"
+              title="Open full page view"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Dedicated View</span>
+            </Link>
+          )}
           <button
             type="button"
             onClick={handleResetDemoData}

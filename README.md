@@ -24,10 +24,11 @@
   - [2. Three-Step Guided Service Journey](#2-three-step-guided-service-journey)
   - [3. Pre-Submission Document Verification & OCR Prototype](#3-pre-submission-document-verification--ocr-prototype)
   - [4. Citizen Document Vault & Application Tracking](#4-citizen-document-vault--application-tracking)
-  - [5. Floating Quick-Access Toolbar](#5-floating-quick-access-toolbar)
-  - [6. Global Color Vision Accessibility Suite](#6-global-color-vision-accessibility-suite)
-  - [7. SevaGuide AI Civic Assistant](#7-sevaguide-ai-civic-assistant)
-  - [8. Office Locator & Nearby Seva Kendras](#8-office-locator--nearby-seva-kendras)
+  - [5. Family Document Management (Accounts Section)](#5-family-document-management-accounts-section)
+  - [6. Floating Quick-Access Toolbar](#6-floating-quick-access-toolbar)
+  - [7. Global Color Vision Accessibility Suite](#7-global-color-vision-accessibility-suite)
+  - [8. SevaGuide AI Civic Assistant](#8-sevaguide-ai-civic-assistant)
+  - [9. Office Locator & Nearby Seva Kendras](#9-office-locator--nearby-seva-kendras)
 - [System Architecture](#-system-architecture)
   - [Architecture Diagram](#architecture-diagram)
   - [Architecture Principles](#architecture-principles)
@@ -161,7 +162,25 @@ When signed in via Supabase Authentication:
 - **Application Tracker**: Citizens can track ongoing applications, update their current workflow step index, review verification statuses (`pending`, `verified`, `warning`, `error`), and manage records.
 - **Secure Deletion**: Double-confirmation deletion modals prevent accidental data loss.
 
-### 5. Floating Quick-Access Toolbar
+### 5. Family Document Management (Accounts Section)
+
+Integrated directly within the citizen's **Accounts** overview (`/profile#family`) and also accessible as a dedicated full-screen view (`/family-documents`), Family Document Management allows households to organize and index civic records across relatives:
+
+- **Unified Household Registry**:
+  - Track family members with standardized household Management IDs (e.g. `FAM-2026-001`, `FAM-2026-002`).
+  - Record relationships (Self, Spouse, Father, Mother, Child, etc.), contact details, and dates of birth.
+  - Household readiness stats: Total Family Members, Total Documents, Verified Documents, and Requiring Attention counters.
+- **Family Member Document Management**:
+  - Multi-category support: *Identity Proof*, *Address Proof*, *Birth Certificate*, *Educational Certificate*, *Income Certificate*, and *Other Documents*.
+  - Status tracking: *Verified*, *Pending Review*, *Needs Attention*, and *Not Uploaded*.
+  - Private file upload to Supabase Storage with strict user path isolation (`${userId}/family/...`).
+  - One-click secure preview with 1-hour signed URLs for uploaded files or local preview for demo records.
+- **Seamless Accounts Integration**:
+  - Cohesive navigation tabs in `/profile`: *Personal Documents* (`#documents`), *Family Documents* (`#family`), *My Applications* (`#applications`), and *Account & Settings* (`#settings`).
+  - Profile menu shortcut directly targets `/profile#family`.
+  - Two-way deep linking: toggle between embedded overview and dedicated standalone management view with one click.
+
+### 6. Floating Quick-Access Toolbar
 
 A persistent, responsive floating toolbar anchored to the bottom edge provides immediate civic utilities without navigating away from the current page:
 
@@ -171,7 +190,7 @@ A persistent, responsive floating toolbar anchored to the bottom edge provides i
 - **AI Assistant Trigger**: Instant shortcut to launch the SevaGuide civic assistant drawer.
 - **Share Portal**: One-click URL clipboard copier with temporary confirmation toast.
 
-### 6. Global Color Vision Accessibility Suite
+### 7. Global Color Vision Accessibility Suite
 
 SevaGuide implements a comprehensive color vision deficiency system engineered with CSS variables and synchronous DOM attributes:
 
@@ -183,7 +202,7 @@ SevaGuide implements a comprehensive color vision deficiency system engineered w
 - **AMOLED Pitch Dark Mode**: Battery-saving, pure black `#000000` dark theme.
 - **FOUC Prevention**: Synchronous pre-render script in `index.html` inspects `localStorage` and applies `data-vision-mode` and `.dark` before the first paint.
 
-### 7. SevaGuide AI Civic Assistant
+### 8. SevaGuide AI Civic Assistant
 
 A fully integrated, privacy-focused conversational civic advisor accessible across the entire application:
 - **Circular Floating Launcher**: Elegant bottom-right bubble with a pulsing status badge, screen-reader accessibility (`aria-label`), and seamless integration with the floating toolbar.
@@ -194,7 +213,7 @@ A fully integrated, privacy-focused conversational civic advisor accessible acro
 - **Duplicate Request Guard**: Implements synchronous submit locks (`isSubmittingRef`) to eliminate duplicate requests caused by accidental double-clicks or rapid enter keys.
 - **Rich Civic Formatting**: Renders markdown bullet lists, bold terminology, government portal links, message copy buttons, suggested question chips, and session-preserved conversation history (`sessionStorage`). *See [SevaGuide AI Assistant & Backend Architecture](#-sevaguide-ai-assistant--backend-architecture) for full architecture and configuration.*
 
-### 8. Office Locator & Nearby Seva Kendras
+### 9. Office Locator & Nearby Seva Kendras
 
 - Comprehensive directory of facilitation centres across Chhattisgarh (Bhilai, Raipur, Durg, Bilaspur).
 - Filters offices dynamically by service type (Aadhaar, Passport, Lok Seva Kendra, RTO).
@@ -448,6 +467,14 @@ All tables and storage objects have strict Row Level Security enabled:
   ```
   Citizens cannot view or access another user's files even if they obtain the storage path.
 
+### 4. Family Document Management Migration
+
+To enable multi-member household document tracking, run the migration in [`supabase/migrations/20261010_family_documents.sql`](supabase/migrations/20261010_family_documents.sql):
+
+- **`public.family_members`**: Indexed household relatives (`id`, `user_id`, `management_id`, `full_name`, `relationship`, `date_of_birth`, `email`, `phone`, `notes`, `is_demo`).
+- **`public.family_documents`**: Relative document records (`id`, `user_id`, `family_member_id`, `title`, `category`, `status`, `storage_path`, `file_name`, `file_size`, `notes`).
+- **Tenant Isolation Policies**: Strict RLS policies (`auth.uid() = user_id`) on both tables, ensuring family member metadata and storage uploads (`${userId}/family/...`) remain completely private to each authenticated account.
+
 ---
 
 ## 🤖 SevaGuide AI Assistant & Backend Architecture
@@ -618,6 +645,8 @@ SevaGuide/
 │       └── prateek_dl.jpeg          # Sample driving licence (Prateek Agrawal)
 ├── supabase/
 │   ├── schema.sql                   # Full PostgreSQL schema, triggers, and RLS policies
+│   ├── migrations/
+│   │   └── 20261010_family_documents.sql # Family members & family documents schema & RLS
 │   └── functions/
 │       └── chat/
 │           └── index.ts             # Supabase Edge Function (Deno) for AI civic chat completions
@@ -638,6 +667,9 @@ SevaGuide/
     │   ├── DocumentRequirementCard.tsx # Detailed document requirements card
     │   ├── DocumentUploader.tsx     # File upload dropzone with Tesseract OCR progress
     │   ├── ExternalPortalModal.tsx  # Advisory modal for external government links
+    │   ├── FamilyDocumentModal.tsx  # Add / edit family member certificate modal
+    │   ├── FamilyMemberDetailModal.tsx # Family member details & documents viewer modal
+    │   ├── FamilyMemberModal.tsx    # Add / edit family member record modal
     │   ├── FilePreviewModal.tsx     # In-browser image and document viewer
     │   ├── FloatingQuickAccessToolbar.tsx # Bottom floating toolbar (Calendar, Feedback, A11y)
     │   ├── Footer.tsx               # Application footer with links and helplines
@@ -675,19 +707,22 @@ SevaGuide/
     │   ├── ServiceDetails.tsx       # 3-step service journey orchestrator
     │   ├── VerifyDocuments.tsx      # Standalone document verification screen
     │   ├── Applications.tsx         # Citizen applications tracking page
+    │   ├── FamilyDocuments.tsx      # Family Document Management (standalone & embedded)
     │   ├── OfficeLocator.tsx        # Interactive facilitation centre map & directory
-    │   ├── Profile.tsx              # Citizen profile and document vault
+    │   ├── Profile.tsx              # Citizen profile, tabs & document vault
     │   ├── Login.tsx / Signup.tsx   # Authentication views
     │   └── About.tsx / FAQ.tsx / Contact.tsx / Feedback.tsx / PrivacyPolicy.tsx / TermsOfUse.tsx
     ├── services/                    # Business logic and external service integrations
     │   ├── ai.ts                    # Contextual civic AI guidance engine
     │   ├── documentVerification.ts  # Cross-document field consistency validator
+    │   ├── familyDocumentsService.ts# Household members & documents manager
     │   ├── maps.ts                  # Geospatial map embed and directions helper
     │   ├── ocr.ts                   # Tesseract.js in-browser OCR worker service
     │   ├── panParser.ts             # Indian PAN card parser and syntax evaluator
     │   └── sampleRegistry.ts        # Sample document registry
     └── types/                       # TypeScript interfaces and type definitions
         ├── calendar.ts              # Holiday, reminder, and calendar types
+        ├── family.ts                # TypeScript types for Family Members and Documents
         └── index.ts                 # Service, document, office, and application types
 ```
 

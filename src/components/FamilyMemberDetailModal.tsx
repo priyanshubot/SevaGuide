@@ -12,9 +12,11 @@ import {
   CheckCircle2,
   Clock,
   Tag,
-  Info
+  Info,
+  Eye
 } from 'lucide-react';
 import { FamilyMemberWithDocs, FamilyDocument, FamilyDocumentStatus } from '../types/family';
+import { FamilyDocumentsService } from '../services/familyDocumentsService';
 
 interface FamilyMemberDetailModalProps {
   isOpen: boolean;
@@ -25,6 +27,7 @@ interface FamilyMemberDetailModalProps {
   onDeleteDocument: (docId: string) => Promise<void>;
   onEditMember: (member: FamilyMemberWithDocs) => void;
   onDeleteMember: (member: FamilyMemberWithDocs) => void;
+  onViewDocument?: (doc: FamilyDocument) => void;
 }
 
 const getStatusBadge = (status: FamilyDocumentStatus) => {
@@ -64,7 +67,8 @@ export const FamilyMemberDetailModal: React.FC<FamilyMemberDetailModalProps> = (
   onEditDocument,
   onDeleteDocument,
   onEditMember,
-  onDeleteMember
+  onDeleteMember,
+  onViewDocument
 }) => {
   const [docToDelete, setDocToDelete] = useState<FamilyDocument | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -80,6 +84,39 @@ export const FamilyMemberDetailModal: React.FC<FamilyMemberDetailModalProps> = (
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleView = async (doc: FamilyDocument) => {
+    if (onViewDocument) {
+      onViewDocument(doc);
+      return;
+    }
+    if (doc.storage_path) {
+      const url = await FamilyDocumentsService.getSignedUrl(doc.storage_path);
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+    }
+    if (doc.file_name) {
+      const demoMatches: Record<string, string> = {
+        'aarav_sharma_id_copy.pdf': '/demo-documents/rahul_adhaar.jpeg',
+        'delhi_bijli_bill_2026.pdf': '/demo-documents/rahul_electricity.jpeg',
+        'income_declaration_father.pdf': '/demo-documents/rahul_pan.jpeg',
+        'meera_aadhaar_card.pdf': '/demo-documents/prateek_aadhar.jpeg',
+        'meera_ration_card_copy.pdf': '/demo-documents/prateek._electricity.jpeg',
+        'riya_degree_certificate.pdf': '/demo-documents/rahul_10th.jpeg',
+        'riya_birth_certificate.pdf': '/demo-documents/prateek_10th.jpeg',
+        'kabir_marksheet_class12.pdf': '/demo-documents/prateek_10th.jpeg',
+        'kabir_learner_licence.pdf': '/demo-documents/prateek_dl.jpeg'
+      };
+      const matched = demoMatches[doc.file_name];
+      if (matched) {
+        window.open(matched, '_blank', 'noopener,noreferrer');
+        return;
+      }
+    }
+    alert(`Document "${doc.title}" is saved in family records.`);
   };
 
   return (
@@ -266,6 +303,15 @@ export const FamilyMemberDetailModal: React.FC<FamilyMemberDetailModalProps> = (
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                      <button
+                        type="button"
+                        onClick={() => handleView(doc)}
+                        className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition"
+                        title="View Document"
+                        aria-label={`View ${doc.title}`}
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
                       <button
                         type="button"
                         onClick={() => onEditDocument(doc, member)}

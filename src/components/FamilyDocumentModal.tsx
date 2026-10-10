@@ -16,6 +16,7 @@ interface FamilyDocumentModalProps {
     file_name?: string;
     file_size?: number;
     notes?: string;
+    file?: File;
   }) => Promise<void>;
   documentToEdit?: FamilyDocument | null;
   memberName: string;
@@ -85,8 +86,19 @@ export const FamilyDocumentModal: React.FC<FamilyDocumentModalProps> = ({
   if (!isOpen) return null;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setErrorMsg(null);
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      const allowedExtensions = /\.(pdf|jpe?g|png)$/i;
+      if (!allowedExtensions.test(file.name)) {
+        setErrorMsg('Unsupported file format. Please attach a PDF, PNG, or JPG file.');
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        setErrorMsg('File size exceeds the 10MB limit. Please attach a smaller file.');
+        return;
+      }
+
       setSelectedFile(file);
       setFileName(file.name);
       if (!title.trim()) {
@@ -113,7 +125,8 @@ export const FamilyDocumentModal: React.FC<FamilyDocumentModalProps> = ({
         status,
         file_name: fileName.trim() || undefined,
         file_size: selectedFile ? selectedFile.size : documentToEdit?.file_size,
-        notes: notes.trim() || undefined
+        notes: notes.trim() || undefined,
+        file: selectedFile || undefined
       });
       onClose();
     } catch (err: any) {
