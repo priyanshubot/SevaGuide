@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { SERVICES_DATA } from '../data/services';
@@ -24,6 +24,7 @@ import {
   Loader2,
   FileCheck,
   ArrowRight,
+  ArrowLeft,
   Sparkles,
   Edit3,
   RefreshCw,
@@ -37,6 +38,7 @@ import {
 
 export const VerifyDocuments: React.FC = () => {
   const { serviceId } = useParams<{ serviceId: string }>();
+  const location = useLocation();
   const service = SERVICES_DATA.find((s) => s.id === serviceId);
   const { user } = useAuth();
 
@@ -730,8 +732,40 @@ export const VerifyDocuments: React.FC = () => {
     }
   };
 
+  // Check if checklist state was passed or stored from Step 1
+  const passedChecklist: Record<string, boolean> | null =
+    (location.state as { checklistState?: Record<string, boolean> } | null)?.checklistState || (() => {
+      try {
+        const saved = localStorage.getItem(`sevaguide_checklist_${serviceId}`);
+        return saved ? JSON.parse(saved) : null;
+      } catch {
+        return null;
+      }
+    })();
+  const readyChecklistCount = passedChecklist ? Object.values(passedChecklist).filter(Boolean).length : 0;
+
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
+      {/* Navigation breadcrumb back to Page 1: Document Readiness Checklist */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <Link
+          to={`/services/${service.id}`}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to Document Readiness Checklist</span>
+        </Link>
+        {passedChecklist && (
+          <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+            Step 1 Checklist:{' '}
+            <strong className="text-emerald-600 dark:text-emerald-400 font-semibold">
+              {readyChecklistCount} of {service.requiredDocuments.length}
+            </strong>{' '}
+            marked ready
+          </span>
+        )}
+      </div>
+
       <div>
         <div className="flex items-center gap-2 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/70 px-3 py-1 rounded-md w-fit mb-2 border border-blue-200 dark:border-blue-900">
           <ShieldCheck className="w-3.5 h-3.5 text-blue-700 dark:text-blue-400" />
