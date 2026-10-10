@@ -12,6 +12,7 @@ import { OfficeLocator } from './pages/OfficeLocator';
 import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
 import { Profile } from './pages/Profile';
+import { FamilyDocuments } from './pages/FamilyDocuments';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { TermsOfUse } from './pages/TermsOfUse';
 import { Feedback } from './pages/Feedback';
@@ -46,6 +47,14 @@ export const App: React.FC = () => {
               element={
                 <AuthGuard>
                   <Profile />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="family-documents"
+              element={
+                <AuthGuard>
+                  <FamilyDocuments />
                 </AuthGuard>
               }
             />

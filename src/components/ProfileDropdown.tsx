@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   User,
   FileText,
+  Users,
   Clock,
   Settings,
   LogOut,
@@ -175,6 +176,16 @@ export const ProfileDropdown: React.FC = () => {
             >
               <FileText className="w-4 h-4 text-slate-400 dark:text-slate-500" />
               <span>Your Documents</span>
+            </Link>
+
+            <Link
+              to="/family-documents"
+              role="menuitem"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:text-blue-700 dark:hover:text-blue-400 hover:bg-blue-50/70 dark:hover:bg-slate-800 transition"
+            >
+              <Users className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+              <span>Family Document Management</span>
             </Link>
 
             <Link
