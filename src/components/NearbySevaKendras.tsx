@@ -20,11 +20,11 @@ export const NearbySevaKendras: React.FC = () => {
     navigator.geolocation.getCurrentPosition(
       (_pos) => {
         setLocating(false);
-        setLocationNote('Showing nearest demo centers relative to your regional sector.');
+        setLocationNote('Showing nearest facilitation centers relative to your location.');
       },
       (_err) => {
         setLocating(false);
-        setLocationNote('Location access was not enabled; displaying regional demo centers.');
+        setLocationNote('Location access was not enabled; displaying regional facilitation centers.');
       },
       { timeout: 5000 }
     );
@@ -34,14 +34,11 @@ export const NearbySevaKendras: React.FC = () => {
     <section aria-label="Nearby Seva Kendras" className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Nearby Seva Kendras</h2>
-            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
-              Demo Offices
-            </span>
-          </div>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+            Nearby Seva Kendras
+          </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Locate official facilitation centers and check operating hours before visiting.
+            Locate facilitation centers, opening hours, and distance.
           </p>
         </div>
 

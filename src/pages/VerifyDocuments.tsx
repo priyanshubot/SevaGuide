@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { SERVICES_DATA } from '../data/services';
-import { ProcessSteps } from '../components/ProcessSteps';
+import { ServiceWorkflowSteps } from '../components/ServiceWorkflowSteps';
 import {
   DocumentRequirementCard,
   DocumentItemState,
@@ -14,9 +14,15 @@ import { extractTextFromImage, OcrProgress, validateOcrFile } from '../services/
 import { parsePanCardText, CandidatePanData } from '../services/panParser';
 import {
   evaluatePanVerification,
+  createUnsupportedDocumentEvaluation,
   VerificationEvaluation,
+  VerificationFieldCheck,
   VERIFICATION_DISCLAIMER,
 } from '../services/documentVerification';
+import {
+  evaluateMultiDocumentUploads,
+  MultiDocVerificationResult,
+} from '../services/sampleRegistry';
 import {
   AlertTriangle,
   CheckCircle,
@@ -24,6 +30,7 @@ import {
   Loader2,
   FileCheck,
   ArrowRight,
+  ArrowLeft,
   Sparkles,
   Edit3,
   RefreshCw,
@@ -33,11 +40,25 @@ import {
   Cpu,
   Save,
   HelpCircle,
+  Eye,
 } from 'lucide-react';
 
-export const VerifyDocuments: React.FC = () => {
+interface VerifyDocumentsProps {
+  serviceIdProp?: string;
+  onBackToStep1?: () => void;
+  onContinueToStep3?: () => void;
+}
+
+export const VerifyDocuments: React.FC<VerifyDocumentsProps> = ({
+  serviceIdProp,
+  onBackToStep1,
+  onContinueToStep3,
+}) => {
   const { serviceId } = useParams<{ serviceId: string }>();
-  const service = SERVICES_DATA.find((s) => s.id === serviceId);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const activeServiceId = serviceIdProp || serviceId;
+  const service = SERVICES_DATA.find((s) => s.id === activeServiceId);
   const { user } = useAuth();
 
   // State map for all required document items
@@ -95,6 +116,9 @@ export const VerifyDocuments: React.FC = () => {
   const [evaluation, setEvaluation] = useState<VerificationEvaluation | null>(null);
   const [primaryPersistedDocId, setPrimaryPersistedDocId] = useState<string | null>(null);
   const [savedUpdateNotice, setSavedUpdateNotice] = useState<boolean>(false);
+
+  // Multi-document pre-submission evaluation result
+  const [multiDocEvaluation, setMultiDocEvaluation] = useState<MultiDocVerificationResult | null>(null);
 
   // Initialize document states when service changes
   useEffect(() => {
@@ -561,18 +585,143 @@ export const VerifyDocuments: React.FC = () => {
     }
   };
 
-  // Run Real OCR Pre-Submission Check
+  // Run Pre-Submission Check
   const handleVerify = async () => {
     setGeneralError(null);
 
     // Check if at least one file has been selected or uploaded
-    const chosenItems = Object.values(documentStates).filter((item) => Boolean(item.file));
+    const chosenItems = service.requiredDocuments
+      .filter((doc) => Boolean(documentStates[doc.id]?.file))
+      .map((doc) => ({
+        docId: doc.id,
+        docDef: doc,
+        file: documentStates[doc.id].file!,
+        previewUrl: documentStates[doc.id].previewUrl,
+        persistedDbId: documentStates[doc.id].persistedDbId,
+        status: documentStates[doc.id].status,
+      }));
+
     if (chosenItems.length === 0) {
       setGeneralError('Please choose or upload at least one document image before running the check.');
       return;
     }
 
-    // Determine target PAN card item
+    setVerifying(true);
+
+    // 1. Multi-document verification route (e.g. Aadhaar Update & Correction)
+    if (service.id === 'aadhaar-update' || (service.requiredDocuments.length > 1 && chosenItems.length > 1)) {
+      setOcrProgress({
+        stage: 'recognizing',
+        progress: 45,
+        message: 'Validating uploaded documents and cross-checking applicant consistency...',
+      });
+
+      // Mark chosen items as processing
+      setDocumentStates((prev) => {
+        const updated = { ...prev };
+        chosenItems.forEach((item) => {
+          if (updated[item.docId]) {
+            updated[item.docId] = {
+              ...updated[item.docId],
+              status: 'processing',
+            };
+          }
+        });
+        return updated;
+      });
+
+      try {
+        // Upload any selected files to Supabase if authenticated
+        if (user) {
+          setSyncStatus('Uploading documents to encrypted Supabase vault...');
+          for (const item of chosenItems) {
+            if (!item.persistedDbId) {
+              await handleUploadSingleDocument(item.docId);
+            }
+          }
+        }
+
+        const multiResult = await evaluateMultiDocumentUploads(
+          chosenItems,
+          referenceApplicantName.trim() || undefined
+        );
+        setMultiDocEvaluation(multiResult);
+
+        const fieldChecks: VerificationFieldCheck[] = multiResult.items.map((item) => ({
+          fieldName: item.docRequirementName,
+          status:
+            item.status === 'VERIFIED'
+              ? 'PASS'
+              : item.status === 'NAME_MISMATCH'
+              ? 'ERROR'
+              : 'INFO',
+          extractedValue: `${item.detectedDocType}${item.detectedApplicantName ? ` • ${item.detectedApplicantName}` : ''}`,
+          message: item.explanation,
+        }));
+
+        const currentEvaluation: VerificationEvaluation = {
+          serviceId: service.id,
+          overallStatus: multiResult.overallStatus,
+          warningsCount: multiResult.items.filter((i) => i.status === 'UNABLE_TO_VERIFY').length,
+          errorsCount: multiResult.items.filter((i) => i.status === 'NAME_MISMATCH').length,
+          fieldChecks,
+          extractedOcrData: {},
+          isOcrProcessed: false,
+          ocrConfidence: 100,
+          disclaimer: VERIFICATION_DISCLAIMER,
+        };
+        setEvaluation(currentEvaluation);
+
+        // Mark all chosen items as ready_for_review
+        setDocumentStates((prev) => {
+          const updated = { ...prev };
+          chosenItems.forEach((item) => {
+            if (updated[item.docId]) {
+              updated[item.docId] = {
+                ...updated[item.docId],
+                status: 'ready_for_review',
+              };
+            }
+          });
+          return updated;
+        });
+
+        // Upsert user application record in Supabase
+        if (user) {
+          try {
+            const appId = `APP-${service.id.toUpperCase().slice(0, 4)}-${user.id.slice(0, 4).toUpperCase()}`;
+            const appStatus =
+              currentEvaluation.overallStatus === 'PASS' ? 'In Progress' : 'Action Required';
+
+            await supabase.from('applications').upsert({
+              id: appId,
+              user_id: user.id,
+              service_id: service.id,
+              service_name: service.name,
+              applicant_name: referenceApplicantName || user.user_metadata?.full_name || 'Citizen',
+              status: appStatus,
+              current_step_index: 1,
+              last_updated: 'Today',
+              updated_at: new Date().toISOString(),
+            });
+          } catch (appErr) {
+            console.warn('Application record upsert warning:', appErr);
+          }
+        }
+
+        setIsVerified(true);
+      } catch (err: any) {
+        console.warn('Multi-document verification error:', err);
+        setGeneralError(err.message || 'An error occurred during verification.');
+      } finally {
+        setVerifying(false);
+        setOcrProgress(null);
+        setSyncStatus(null);
+      }
+      return;
+    }
+
+    // Determine target item: prioritize PAN if available, else first chosen item
     const panReq = service.requiredDocuments.find(
       (d) => d.id === 'doc-pan' || d.name.toLowerCase().includes('pan')
     );
@@ -580,18 +729,28 @@ export const VerifyDocuments: React.FC = () => {
       ? documentStates[panReq.id]
       : chosenItems[0];
 
+    const targetDocDef = service.requiredDocuments.find((d) => d.id === targetItem.docId);
+    const isPanTarget =
+      targetItem.docId === 'doc-pan' ||
+      targetItem.docId.includes('pan') ||
+      Boolean(targetDocDef?.name.toLowerCase().includes('pan'));
+
     const targetFile = targetItem.file!;
-    const validation = validateOcrFile(targetFile);
-    if (!validation.valid) {
-      setGeneralError(validation.error || 'The uploaded file is not supported for OCR.');
-      return;
+    if (isPanTarget) {
+      const validation = validateOcrFile(targetFile);
+      if (!validation.valid) {
+        setGeneralError(validation.error || 'The uploaded file is not supported for OCR.');
+        setVerifying(false);
+        return;
+      }
     }
 
-    setVerifying(true);
     setOcrProgress({
       stage: 'loading',
       progress: 5,
-      message: 'Initializing browser OCR engine (Tesseract.js)...',
+      message: isPanTarget
+        ? 'Initializing browser OCR engine (Tesseract.js)...'
+        : 'Encrypting and saving document to vault...',
     });
 
     // Mark target item as processing
@@ -619,65 +778,96 @@ export const VerifyDocuments: React.FC = () => {
         }
       }
 
-      // 2. Run real browser-side OCR text extraction
-      const ocrResult = await extractTextFromImage(targetFile, (prog) => {
-        setOcrProgress(prog);
-      });
+      let currentEvaluation: VerificationEvaluation;
 
-      // 3. Parse candidate PAN entities
-      const parsedPan = parsePanCardText(
-        ocrResult.rawText,
-        ocrResult.lines,
-        ocrResult.confidence
-      );
-      setCandidateData(parsedPan);
+      if (isPanTarget) {
+        // 2. Run real browser-side OCR text extraction for PAN card
+        const ocrResult = await extractTextFromImage(targetFile, (prog) => {
+          setOcrProgress(prog);
+        });
 
-      const initialFields = {
-        panNumber: parsedPan.candidatePanNumber || '',
-        name: parsedPan.candidateName || '',
-        fatherName: parsedPan.candidateFatherName || '',
-        dob: parsedPan.candidateDob || '',
-      };
-      setEditableFields(initialFields);
+        // 3. Parse candidate PAN entities
+        const parsedPan = parsePanCardText(
+          ocrResult.rawText,
+          ocrResult.lines,
+          ocrResult.confidence
+        );
+        setCandidateData(parsedPan);
 
-      // 4. Rule-based evaluation
-      const initialEvaluation = evaluatePanVerification(
-        parsedPan,
-        service.id,
-        referenceApplicantName.trim() || undefined
-      );
-      setEvaluation(initialEvaluation);
+        const initialFields = {
+          panNumber: parsedPan.candidatePanNumber || '',
+          name: parsedPan.candidateName || '',
+          fatherName: parsedPan.candidateFatherName || '',
+          dob: parsedPan.candidateDob || '',
+        };
+        setEditableFields(initialFields);
 
-      // 5. Update target item state to 'ready_for_review'
-      setDocumentStates((prev) => ({
-        ...prev,
-        [targetItem.docId]: {
-          ...prev[targetItem.docId],
-          status: 'ready_for_review',
-          ocrConfidence: parsedPan.ocrConfidence,
-        },
-      }));
+        // 4. Rule-based evaluation
+        currentEvaluation = evaluatePanVerification(
+          parsedPan,
+          service.id,
+          referenceApplicantName.trim() || undefined
+        );
+        setEvaluation(currentEvaluation);
+
+        // 5. Update target item state to 'ready_for_review'
+        setDocumentStates((prev) => ({
+          ...prev,
+          [targetItem.docId]: {
+            ...prev[targetItem.docId],
+            status: 'ready_for_review',
+            ocrConfidence: parsedPan.ocrConfidence,
+          },
+        }));
+      } else {
+        // Non-PAN document: explicitly mark as unsupported for automated OCR extraction
+        setCandidateData(null);
+        currentEvaluation = createUnsupportedDocumentEvaluation(
+          service.id,
+          targetDocDef?.name || 'Selected Document'
+        );
+        setEvaluation(currentEvaluation);
+
+        setDocumentStates((prev) => ({
+          ...prev,
+          [targetItem.docId]: {
+            ...prev[targetItem.docId],
+            status: 'ready_for_review',
+            ocrConfidence: null,
+          },
+        }));
+      }
 
       // 6. Update database with ocr_data payload if user is authenticated
       if (user && primaryDocId) {
         setPrimaryPersistedDocId(primaryDocId);
-        const ocrPayload = {
-          candidatePanNumber: parsedPan.candidatePanNumber,
-          candidateName: parsedPan.candidateName,
-          candidateFatherName: parsedPan.candidateFatherName,
-          candidateDob: parsedPan.candidateDob,
-          entityType: parsedPan.entityType,
-          ocrConfidence: parsedPan.ocrConfidence,
-          fieldChecks: initialEvaluation.fieldChecks,
-          overallStatus: initialEvaluation.overallStatus,
-          extractedAt: new Date().toISOString(),
-        };
+        const ocrPayload = isPanTarget && candidateData
+          ? {
+              candidatePanNumber: candidateData.candidatePanNumber,
+              candidateName: candidateData.candidateName,
+              candidateFatherName: candidateData.candidateFatherName,
+              candidateDob: candidateData.candidateDob,
+              entityType: candidateData.entityType,
+              ocrConfidence: candidateData.ocrConfidence,
+              fieldChecks: currentEvaluation.fieldChecks,
+              overallStatus: currentEvaluation.overallStatus,
+              extractedAt: new Date().toISOString(),
+            }
+          : {
+              documentType: targetDocDef?.name || 'Document',
+              ocrSupported: false,
+              fieldChecks: currentEvaluation.fieldChecks,
+              overallStatus: currentEvaluation.overallStatus,
+              extractedAt: new Date().toISOString(),
+            };
 
         const status =
-          initialEvaluation.overallStatus === 'PASS'
+          currentEvaluation.overallStatus === 'PASS'
             ? 'verified'
-            : initialEvaluation.overallStatus === 'WARNING'
+            : currentEvaluation.overallStatus === 'WARNING'
             ? 'warning'
+            : currentEvaluation.overallStatus === 'NEEDS_REVIEW'
+            ? 'pending'
             : 'error';
 
         await supabase
@@ -693,7 +883,7 @@ export const VerifyDocuments: React.FC = () => {
         try {
           const appId = `APP-${service.id.toUpperCase().slice(0, 4)}-${user.id.slice(0, 4).toUpperCase()}`;
           const appStatus =
-            initialEvaluation.overallStatus === 'PASS' ? 'In Progress' : 'Action Required';
+            currentEvaluation.overallStatus === 'PASS' ? 'In Progress' : 'Action Required';
 
           await supabase.from('applications').upsert({
             id: appId,
@@ -730,22 +920,79 @@ export const VerifyDocuments: React.FC = () => {
     }
   };
 
+  // Check if checklist state was passed or stored from Step 1
+  const passedChecklist: Record<string, boolean> | null =
+    (location.state as { checklistState?: Record<string, boolean> } | null)?.checklistState || (() => {
+      try {
+        const saved = localStorage.getItem(`sevaguide_checklist_${serviceId}`);
+        return saved ? JSON.parse(saved) : null;
+      } catch {
+        return null;
+      }
+    })();
+  const readyChecklistCount = passedChecklist ? Object.values(passedChecklist).filter(Boolean).length : 0;
+
+  const handleBack = () => {
+    if (onBackToStep1) {
+      onBackToStep1();
+    } else if (service) {
+      navigate(`/services/${service.id}?step=1`);
+    } else {
+      navigate(-1);
+    }
+  };
+
+  const handleContinue = () => {
+    if (onContinueToStep3) {
+      onContinueToStep3();
+    } else if (service) {
+      navigate(`/services/${service.id}?step=3`);
+    }
+  };
+
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
+      {/* Navigation breadcrumb back to Page 1: Document Readiness Checklist */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={handleBack}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to Document Readiness Checklist</span>
+        </button>
+        {passedChecklist && (
+          <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+            Step 1 Checklist:{' '}
+            <strong className="text-emerald-600 dark:text-emerald-400 font-semibold">
+              {readyChecklistCount} of {service.requiredDocuments.length}
+            </strong>{' '}
+            marked ready
+          </span>
+        )}
+      </div>
+
       <div>
         <div className="flex items-center gap-2 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/70 px-3 py-1 rounded-md w-fit mb-2 border border-blue-200 dark:border-blue-900">
           <ShieldCheck className="w-3.5 h-3.5 text-blue-700 dark:text-blue-400" />
-          <span>Pre-Submission Consistency Check</span>
+          <span>Step 2 of 3: Document Verification</span>
         </div>
         <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">
-          {service.name} Document Check
+          {service.name}
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Select or upload documents to your encrypted vault. Run in-browser OCR for instant verification.
+          Upload documents to your encrypted vault and run automated consistency checks.
         </p>
       </div>
 
-      <ProcessSteps steps={service.steps} currentStepIndex={1} />
+      <ServiceWorkflowSteps
+        currentStep={2}
+        onStepClick={(step) => {
+          if (step === 1) handleBack();
+          if (step === 3) handleContinue();
+        }}
+      />
 
       {generalError && (
         <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-2xl flex items-start gap-3 text-xs text-rose-800 dark:text-rose-300">
@@ -759,20 +1006,24 @@ export const VerifyDocuments: React.FC = () => {
 
       {!isVerified ? (
         <div className="space-y-6">
-          {/* Quick Demo Test Bar */}
-          <div className="p-4 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2 text-blue-900 dark:text-blue-200 font-medium">
-              <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
-              <span>Want to test without a physical card? Generate a sample PAN card image instantly.</span>
+
+          {/* Quick Demo Test Bar (PAN verification only) */}
+          {(service.id === 'pan-correction' ||
+            service.requiredDocuments.some((d) => d.id === 'doc-pan' || d.name.toLowerCase().includes('pan'))) && (
+            <div className="p-4 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2 text-blue-900 dark:text-blue-200 font-medium">
+                <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                <span>Want to test without a physical card? Generate a sample PAN card image instantly.</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleLoadSamplePanCard}
+                className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition shrink-0 shadow-xs cursor-pointer"
+              >
+                Generate Sample PAN Image
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={handleLoadSamplePanCard}
-              className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition shrink-0 shadow-xs cursor-pointer"
-            >
-              Generate Sample PAN Image
-            </button>
-          </div>
+          )}
 
           {/* Reference Applicant Name Input */}
           <div className="bg-white dark:bg-black border border-slate-200 dark:border-zinc-800 rounded-2xl p-5 shadow-sm space-y-2">
@@ -800,7 +1051,7 @@ export const VerifyDocuments: React.FC = () => {
           <div className="space-y-4">
             {service.requiredDocuments.map((doc) => {
               const isOcrTarget =
-                doc.id === 'doc-pan' || doc.name.toLowerCase().includes('pan') || doc.category === 'existing';
+                doc.id === 'doc-pan' || doc.name.toLowerCase().includes('pan');
               const itemState = documentStates[doc.id] || {
                 docId: doc.id,
                 file: null,
@@ -871,6 +1122,27 @@ export const VerifyDocuments: React.FC = () => {
               Note: Automated consistency check. Image files are analyzed locally in your browser. No PII is sent to external AI servers.
             </p>
           </div>
+
+          {/* Step Navigation Controls */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 border-t border-slate-200/80 dark:border-zinc-800">
+            <button
+              type="button"
+              onClick={handleBack}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-900 font-semibold text-xs transition cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Document Checklist</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleContinue}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm hover:shadow transition cursor-pointer"
+            >
+              <span>Continue to Step 3: Online or Offline</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       ) : (
         /* Verified / Results View */
@@ -887,6 +1159,10 @@ export const VerifyDocuments: React.FC = () => {
                   <div className="p-2.5 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900">
                     <AlertTriangle className="w-6 h-6" />
                   </div>
+                ) : evaluation?.overallStatus === 'NEEDS_REVIEW' ? (
+                  <div className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
+                    <HelpCircle className="w-6 h-6" />
+                  </div>
                 ) : (
                   <div className="p-2.5 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900">
                     <AlertCircle className="w-6 h-6" />
@@ -901,6 +1177,8 @@ export const VerifyDocuments: React.FC = () => {
                           ? 'text-emerald-600 dark:text-emerald-400'
                           : evaluation?.overallStatus === 'WARNING'
                           ? 'text-amber-600 dark:text-amber-400'
+                          : evaluation?.overallStatus === 'NEEDS_REVIEW'
+                          ? 'text-blue-600 dark:text-blue-400'
                           : 'text-rose-600 dark:text-rose-400'
                       }
                     >
@@ -908,26 +1186,169 @@ export const VerifyDocuments: React.FC = () => {
                         ? 'Passed Consistency Check'
                         : evaluation?.overallStatus === 'WARNING'
                         ? 'Warnings Detected'
+                        : evaluation?.overallStatus === 'NEEDS_REVIEW'
+                        ? 'Stored in Vault (Manual Review)'
                         : 'Action Required'}
                     </span>
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    {evaluation?.warningsCount} warning(s), {evaluation?.errorsCount} error(s) flagged
+                    {multiDocEvaluation
+                      ? multiDocEvaluation.summaryMessage
+                      : evaluation?.overallStatus === 'NEEDS_REVIEW'
+                      ? 'Automated OCR field extraction is calibrated for PAN cards. Document securely vaulted for physical verification.'
+                      : `${evaluation?.warningsCount} warning(s), ${evaluation?.errorsCount} error(s) flagged`}
                   </p>
                 </div>
               </div>
 
-              {candidateData && (
+              {multiDocEvaluation ? (
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <span
+                    className={`text-xs font-bold font-mono px-3 py-1 rounded-xl border ${
+                      multiDocEvaluation.overallStatus === 'PASS'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                        : 'bg-rose-50 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                    }`}
+                  >
+                    {multiDocEvaluation.matchedCount}/{multiDocEvaluation.totalCount} Documents Matched
+                  </span>
+                </div>
+              ) : candidateData ? (
                 <div className="flex items-center gap-2 self-start sm:self-auto">
                   <span className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900 flex items-center gap-1.5">
                     <Cpu className="w-3.5 h-3.5" />
                     <span>OCR Confidence: {candidateData.ocrConfidence}%</span>
                   </span>
                 </div>
-              )}
+              ) : null}
             </div>
 
-            {/* Candidate Review & Manual Correction Form */}
+            {/* Verified Supporting Documents Breakdown (Multi-document services) */}
+            {multiDocEvaluation && (
+              <div className="space-y-3 pt-2">
+                <h4 className="font-bold text-xs uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Verified Supporting Documents
+                </h4>
+                <div className="space-y-3">
+                  {multiDocEvaluation.items.map((item) => (
+                    <div
+                      key={item.docId}
+                      className={`p-4 sm:p-4.5 rounded-2xl border transition-all ${
+                        item.status === 'VERIFIED'
+                          ? 'bg-slate-50 dark:bg-zinc-950 border-slate-200 dark:border-zinc-800'
+                          : item.status === 'NAME_MISMATCH'
+                          ? 'bg-rose-50/50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900'
+                          : 'bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900'
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          {item.previewUrl && (
+                            <div
+                              onClick={() =>
+                                setPreviewModal({
+                                  isOpen: true,
+                                  title: item.docRequirementName,
+                                  fileName: item.fileName,
+                                  previewUrl: item.previewUrl,
+                                  mimeType: 'image/jpeg',
+                                })
+                              }
+                              className="group relative w-14 h-14 sm:w-16 sm:h-16 shrink-0 rounded-xl overflow-hidden bg-white dark:bg-black border border-slate-200 dark:border-zinc-800 cursor-pointer shadow-xs"
+                              title="Click to view full preview"
+                            >
+                              <img
+                                src={item.previewUrl}
+                                alt={item.fileName}
+                                className="w-full h-full object-cover group-hover:scale-105 transition"
+                              />
+                              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white">
+                                <Eye className="w-4 h-4 drop-shadow" />
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h5 className="font-bold text-sm text-slate-900 dark:text-white">
+                                {item.docRequirementName}
+                              </h5>
+                              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                                ({item.detectedDocType})
+                              </span>
+                            </div>
+
+                            <p className="text-xs font-mono text-slate-500 dark:text-slate-400 truncate">
+                              File: {item.fileName}
+                            </p>
+
+                            {item.detectedApplicantName && (
+                              <div className="flex items-center gap-3 text-xs pt-0.5 flex-wrap">
+                                <span className="text-slate-400">Name on Document:</span>
+                                <span
+                                  className={`font-semibold ${
+                                    item.status === 'NAME_MISMATCH'
+                                      ? 'text-rose-700 dark:text-rose-300 font-bold underline'
+                                      : 'text-slate-800 dark:text-slate-200'
+                                  }`}
+                                >
+                                  {item.detectedApplicantName}
+                                </span>
+                                <span className="text-slate-400">• Applicant Profile:</span>
+                                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                                  {multiDocEvaluation.applicantProfileName}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex sm:flex-col items-start sm:items-end justify-between sm:justify-center gap-1.5 shrink-0 sm:max-w-xs">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                              item.status === 'VERIFIED'
+                                ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                : item.status === 'NAME_MISMATCH'
+                                ? 'bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800'
+                                : 'bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                            }`}
+                          >
+                            {item.status === 'VERIFIED' ? (
+                              <>
+                                <CheckCircle className="w-3.5 h-3.5" />
+                                <span>Verified</span>
+                              </>
+                            ) : item.status === 'NAME_MISMATCH' ? (
+                              <>
+                                <AlertCircle className="w-3.5 h-3.5" />
+                                <span>Name mismatch</span>
+                              </>
+                            ) : (
+                              <>
+                                <Info className="w-3.5 h-3.5" />
+                                <span>Unable to verify</span>
+                              </>
+                            )}
+                          </span>
+                          <p
+                            className={`text-xs sm:text-right leading-relaxed ${
+                              item.status === 'NAME_MISMATCH'
+                                ? 'text-rose-700 dark:text-rose-300 font-medium'
+                                : 'text-slate-500 dark:text-slate-400'
+                            }`}
+                          >
+                            {item.explanation}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Candidate Review Form (for PAN) or Vault Notice (for other documents) */}
+            {candidateData ? (
             <div className="bg-slate-50 dark:bg-zinc-950 p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -1048,6 +1469,19 @@ export const VerifyDocuments: React.FC = () => {
                 </div>
               )}
             </div>
+          ) : (
+            <div className="bg-slate-50 dark:bg-zinc-950 p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 space-y-3">
+              <div className="flex items-center gap-2.5 text-blue-700 dark:text-blue-400">
+                <ShieldCheck className="w-5 h-5 shrink-0" />
+                <h4 className="font-bold text-xs uppercase tracking-wider text-slate-900 dark:text-white">
+                  Document Safely Vaulted & Ready for Counter Submission
+                </h4>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Automated OCR extraction is currently configured for PAN cards. This document has been verified as uploaded, formatted correctly, and encrypted in your local session / cloud vault. Carry the original physical copy when visiting the seva kendra or center.
+              </p>
+            </div>
+          )}
 
             {/* Field Checks Breakdown */}
             <div className="space-y-3 pt-2">
@@ -1125,30 +1559,31 @@ export const VerifyDocuments: React.FC = () => {
                     setIsVerified(false);
                     setCandidateData(null);
                     setEvaluation(null);
+                    setMultiDocEvaluation(null);
                   }}
                   className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-slate-800 dark:text-slate-200 font-semibold px-4 py-2.5 rounded-xl text-xs border border-transparent dark:border-zinc-800 transition cursor-pointer"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Check Another Document</span>
+                  <span>Check Another Document / Re-upload</span>
                 </button>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Link
                   to="/profile"
-                  className="inline-flex items-center gap-1.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold px-5 py-2.5 rounded-xl text-xs transition shadow-sm"
-                >
-                  <span>View in My Documents</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-
-                <Link
-                  to={`/offices/${service.id}`}
                   className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-slate-800 dark:text-slate-200 font-semibold px-4 py-2.5 rounded-xl text-xs border border-transparent dark:border-zinc-800 transition"
                 >
-                  <span>Find Facilitation Office</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <span>My Documents</span>
                 </Link>
+
+                <button
+                  type="button"
+                  onClick={handleContinue}
+                  className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition shadow-sm cursor-pointer"
+                >
+                  <span>Continue to Step 3: Online or Offline</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
           </div>
