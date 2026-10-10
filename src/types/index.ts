@@ -93,6 +93,10 @@ export interface ChatMessage {
   sender: 'user' | 'assistant';
   text: string;
   timestamp: string;
+  isError?: boolean;
+  errorCode?: string;
+  model?: string;
+  warningNote?: string;
 }
 
 export interface UserProfile {

@@ -1,26 +1,156 @@
+import { supabase } from '../lib/supabase';
 
 export interface AIContext {
   activeServiceId?: string;
   activeServiceName?: string;
+  activeServiceCategory?: string;
   currentStep?: string;
   verificationIssues?: string[];
 }
 
-export async function askSevaGuide(question: string, context?: AIContext): Promise<string> {
-  await new Promise((resolve) => setTimeout(resolve, 800));
-  const q = question.toLowerCase();
+export interface ChatHistoryItem {
+  id: string;
+  sender: 'user' | 'assistant';
+  text: string;
+  timestamp?: string;
+}
 
-  if (q.includes('document') || q.includes('need') || q.includes('require')) {
-    return `For ${context?.activeServiceName || 'government services'}, you generally need: 1) Proof of Identity (POI), 2) Proof of Address (POA), and 3) A recent passport photograph. Always ensure names match exactly across all cards.`;
+export interface AIResponseResult {
+  reply: string;
+  model?: string;
+  isError?: boolean;
+  errorCode?: string;
+  warningNote?: string;
+}
+
+// Client-side PII guard: never send Aadhaar numbers or PAN numbers
+export function sanitizeCitizenInput(text: string): { cleanText: string; hasSensitiveData: boolean } {
+  const aadhaarRegex = /\b\d{4}[ -]?\d{4}[ -]?\d{4}\b/g;
+  const panRegex = /\b[A-Z]{5}[0-9]{4}[A-Z]{1}\b/gi;
+
+  const hasAadhaar = aadhaarRegex.test(text);
+  const hasPan = panRegex.test(text);
+
+  const cleanText = text
+    .replace(aadhaarRegex, '[REDACTED_AADHAAR]')
+    .replace(panRegex, '[REDACTED_PAN]');
+
+  return {
+    cleanText,
+    hasSensitiveData: hasAadhaar || hasPan,
+  };
+}
+
+/**
+ * Sends a query to the SevaGuide AI backend.
+ * Checks Supabase Edge Function first, falling back to serverless /api/chat.
+ * Does not fabricate successful responses when the backend/API key is unavailable.
+ */
+export async function askSevaGuide(
+  question: string,
+  context?: AIContext,
+  history?: ChatHistoryItem[]
+): Promise<AIResponseResult> {
+  const trimmed = question.trim();
+  if (!trimmed) {
+    return {
+      reply: 'Please enter a question to ask the SevaGuide assistant.',
+      isError: true,
+      errorCode: 'EMPTY_INPUT',
+    };
   }
 
-  if (q.includes('warning') || q.includes('address') || q.includes('mismatch')) {
-    return `If you see an address warning, verify if your recent utility bill has a different street layout than your Aadhaar card. You can submit an official Gazette notification or a self-declaration affidavit if required.`;
+  const { cleanText, hasSensitiveData } = sanitizeCitizenInput(trimmed);
+  const privacyWarning = hasSensitiveData
+    ? 'Notice: For your privacy and protection, your personal Aadhaar or PAN number was masked before transmission.'
+    : undefined;
+
+  const payload = {
+    message: cleanText,
+    context: {
+      activeServiceId: context?.activeServiceId,
+      activeServiceName: context?.activeServiceName,
+      activeServiceCategory: context?.activeServiceCategory,
+      currentStep: context?.currentStep,
+      verificationIssues: context?.verificationIssues,
+    },
+    history: (history || []).slice(-8).map((h) => ({
+      sender: h.sender,
+      text: h.text,
+    })),
+  };
+
+  // 1. Try Supabase Edge Function: 'chat'
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.functions.invoke('chat', {
+        body: payload,
+      });
+
+      if (!error && data?.reply) {
+        return {
+          reply: data.reply,
+          model: data.model || 'google/gemma-4-31b-it:free',
+          warningNote: privacyWarning,
+        };
+      }
+
+      // If Edge Function responded with structured missing API key or error
+      if (data?.error) {
+        return {
+          reply: data.error,
+          isError: true,
+          errorCode: data.code || 'BACKEND_ERROR',
+          warningNote: privacyWarning,
+        };
+      }
+    } catch {
+      // Supabase Edge Function invocation failed or not deployed; fallback to /api/chat
+    }
   }
 
-  if (q.includes('where') || q.includes('office') || q.includes('submit')) {
-    return `You can submit your documents online via official government portals, or visit the nearest facilitation office. Check our "Find Office" tab to locate nearest centers with direction assistance.`;
-  }
+  // 2. Try server endpoint: /api/chat
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
 
-  return `I am SevaGuide AI assistant. I can help guide you through document preparation, pre-submission checks, and locating official government service centers for ${context?.activeServiceName || 'your application'}.`;
+    const data = await res.json().catch(() => ({}));
+
+    if (res.ok && data?.reply) {
+      return {
+        reply: data.reply,
+        model: data.model || 'google/gemma-4-31b-it:free',
+        warningNote: privacyWarning,
+      };
+    }
+
+    if (data?.error) {
+      return {
+        reply: data.error,
+        isError: true,
+        errorCode: data.code || 'API_ERROR',
+        warningNote: privacyWarning,
+      };
+    }
+
+    return {
+      reply: `AI assistant backend error (HTTP ${res.status}). Please verify that your backend endpoint is reachable.`,
+      isError: true,
+      errorCode: `HTTP_${res.status}`,
+      warningNote: privacyWarning,
+    };
+  } catch (err: any) {
+    return {
+      reply:
+        'Unable to connect to the AI assistant backend. Please verify your internet connection or server configuration.',
+      isError: true,
+      errorCode: 'NETWORK_FAILURE',
+      warningNote: privacyWarning,
+    };
+  }
 }
