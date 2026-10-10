@@ -164,21 +164,48 @@ When signed in via Supabase Authentication:
 
 ### 5. Family Document Management (Accounts Section)
 
-Integrated directly within the citizen's **Accounts** overview (`/profile#family`) and also accessible as a dedicated full-screen view (`/family-documents`), Family Document Management allows households to organize and index civic records across relatives:
+Integrated directly within the citizen's **Accounts** overview ([`src/pages/Profile.tsx`](src/pages/Profile.tsx)) and also accessible as a dedicated full-screen workspace ([`src/pages/FamilyDocuments.tsx`](src/pages/FamilyDocuments.tsx)), Family Document Management enables Indian households to organize, index, and audit civic documentation across multiple family members in one place:
 
-- **Unified Household Registry**:
-  - Track family members with standardized household Management IDs (e.g. `FAM-2026-001`, `FAM-2026-002`).
-  - Record relationships (Self, Spouse, Father, Mother, Child, etc.), contact details, and dates of birth.
-  - Household readiness stats: Total Family Members, Total Documents, Verified Documents, and Requiring Attention counters.
-- **Family Member Document Management**:
-  - Multi-category support: *Identity Proof*, *Address Proof*, *Birth Certificate*, *Educational Certificate*, *Income Certificate*, and *Other Documents*.
-  - Status tracking: *Verified*, *Pending Review*, *Needs Attention*, and *Not Uploaded*.
-  - Private file upload to Supabase Storage with strict user path isolation (`${userId}/family/...`).
-  - One-click secure preview with 1-hour signed URLs for uploaded files or local preview for demo records.
-- **Seamless Accounts Integration**:
-  - Cohesive navigation tabs in `/profile`: *Personal Documents* (`#documents`), *Family Documents* (`#family`), *My Applications* (`#applications`), and *Account & Settings* (`#settings`).
-  - Profile menu shortcut directly targets `/profile#family`.
-  - Two-way deep linking: toggle between embedded overview and dedicated standalone management view with one click.
+- **Seamless Accounts Section Integration**:
+  - **Interactive Tab Navigation**: The `/profile` route features synchronized tab navigation with accessible controls (`role="tablist"`):
+    - 📄 **Personal Documents** (`#documents`): Manage your primary identity documents, OCR extraction results, and certificates.
+    - 👨‍👩‍👧‍👦 **Family Documents** (`#family`): Unified household records with active member counts and readiness indicators.
+    - ⏱️ **My Applications** (`#applications`): Real-time tracking of public welfare and civic service applications.
+    - ⚙️ **Account & Settings** (`#settings`): Theme selection (White, AMOLED Dark, System) and profile credentials.
+  - **Two-Way Deep Linking**: URL hashes (`#family`, `#documents`, `#applications`, `#settings`) synchronize dynamically with active tab states using React Router, preserving browser history and supporting direct bookmarks.
+  - **One-Click Menu Navigation**: The global top-bar account dropdown ([`src/components/ProfileDropdown.tsx`](src/components/ProfileDropdown.tsx)) provides immediate access via a direct shortcut to `/profile#family`.
+  - **Dual-Mode UI Architecture**:
+    - *Embedded Mode* (`embedded={true}`): Integrates seamlessly within `/profile#family` with compact layout and an `"Open Dedicated View"` shortcut.
+    - *Dedicated Standalone Mode* (`/family-documents`): Expands to full screen with a `"← Back to Accounts Overview"` breadcrumb link returning directly to `/profile#family`.
+
+- **Unified Household Registry & Management IDs**:
+  - Automatically suggests standardized household management IDs (e.g., `FAM-2026-001`, `FAM-2026-002`) to index members cleanly without exposing national identity numbers.
+  - Supports comprehensive relationship categorizations (Self, Spouse, Father, Mother, Son, Daughter, Brother, Sister, Grandfather, Grandmother, Other) with optional dates of birth, contact details, and administrative notes.
+  - **Real-Time Readiness Counters**: Four dynamic status cards calculate live household metrics:
+    1. *Total Family Members*: Total relatives indexed in the household profile.
+    2. *Total Documents*: Overall certificate count across all categories.
+    3. *Verified Documents*: Documents verified and ready for public scheme applications.
+    4. *Requiring Attention*: Missing or unverified documents flagged for follow-up.
+
+- **Multi-Category Document Organization & Validation**:
+  - Six standardized civic categories:
+    - 🆔 *Identity Proof* (Aadhaar, Voter ID, PAN, Passport)
+    - 🏠 *Address Proof* (Electricity bill, Ration card, Domicile certificate)
+    - 📜 *Birth Certificate* (Municipal or hospital record)
+    - 🎓 *Educational Certificate* (10th/12th marksheet, degree certificate)
+    - 💰 *Income Certificate* (Tehsildar income declaration, salary slip)
+    - 📁 *Other Documents* (Disability certificate, pension order, affidavit)
+  - **Client-Side File Validation**: Enforces strict format restrictions (PDF, JPG, JPEG, PNG) and file size limits (≤ 10MB) with clear alert messages ([`src/components/FamilyDocumentModal.tsx`](src/components/FamilyDocumentModal.tsx)).
+
+- **Private Storage Uploads & Signed URL Security**:
+  - **Tenant Path Isolation**: Uploaded files are sent to the private Supabase Storage bucket `documents` under strict user-isolated folders:
+    ```
+    documents/{user_id}/family/{document_id}/{sanitized_file_name}
+    ```
+  - **Zero Public Exposure**: The bucket is private; files cannot be accessed via direct public URLs.
+  - **1-Hour Time-Limited Signed URLs**: Clicking the `"Eye"` preview button generates a temporary signed URL (`supabase.storage.createSignedUrl`) valid for 3600 seconds ([`src/components/FamilyMemberDetailModal.tsx`](src/components/FamilyMemberDetailModal.tsx)).
+  - **Cascading Deletion**: Removing a family document automatically deletes both the database metadata record and the underlying file in Supabase Storage.
+  - **Dual-Cache Resilience**: All records synchronize to browser `localStorage` as a fallback, ensuring the full interactive demo functions reliably even when Supabase is disconnected.
 
 ### 6. Floating Quick-Access Toolbar
 
@@ -239,6 +266,7 @@ flowchart TD
         subgraph ClientEngines["Client-Side Processing"]
             OCR["Tesseract.js (WASM Worker)"]
             DocVerify["PAN & Name Verification Engine"]
+            FamilyMgr["Family Document Service (Dual Cache)"]
             AIChat["AIAssistantDrawer (UI + Client PII Scrubbing)"]
         end
     end
@@ -256,10 +284,12 @@ flowchart TD
             TableDocs[("public.documents")]
             TableApps[("public.applications")]
             TableReminders[("public.personal_reminders")]
+            TableFamilyMembers[("public.family_members")]
+            TableFamilyDocs[("public.family_documents")]
         end
         
         subgraph StorageService["Supabase Storage"]
-            PrivateBucket[("documents bucket (Private, RLS-Isolated)")]
+            PrivateBucket[("documents bucket (Private, RLS-Isolated)<br/>Path: {user_id}/family/{doc_id}/{filename}")]
         end
     end
 
@@ -275,6 +305,7 @@ flowchart TD
 
     UI --> Router
     Router --> DocVerify
+    Router --> FamilyMgr
     Router --> AIChat
     DocVerify --> OCR
     
@@ -286,10 +317,12 @@ flowchart TD
 
     AuthCtx --> AuthService
     AuthCtx --> PostgresDB
+    FamilyMgr --> PostgresDB
+    FamilyMgr --> StorageService
     UI --> StorageService
     
     TableProfiles -. "Auto-created on signup" .-> AuthService
-    PrivateBucket -. "Isolated path: {user_id}/{filename}" .-> AuthService
+    PrivateBucket -. "Tenant isolation: auth.uid() = foldername" .-> AuthService
 
     UI --> OSM
     UI --> GovPortals
@@ -469,11 +502,66 @@ All tables and storage objects have strict Row Level Security enabled:
 
 ### 4. Family Document Management Migration
 
-To enable multi-member household document tracking, run the migration in [`supabase/migrations/20261010_family_documents.sql`](supabase/migrations/20261010_family_documents.sql):
+To enable multi-member household document tracking, run the migration script in [`supabase/migrations/20261010_family_documents.sql`](supabase/migrations/20261010_family_documents.sql):
 
-- **`public.family_members`**: Indexed household relatives (`id`, `user_id`, `management_id`, `full_name`, `relationship`, `date_of_birth`, `email`, `phone`, `notes`, `is_demo`).
-- **`public.family_documents`**: Relative document records (`id`, `user_id`, `family_member_id`, `title`, `category`, `status`, `storage_path`, `file_name`, `file_size`, `notes`).
-- **Tenant Isolation Policies**: Strict RLS policies (`auth.uid() = user_id`) on both tables, ensuring family member metadata and storage uploads (`${userId}/family/...`) remain completely private to each authenticated account.
+```sql
+-- 1. Family Members Table
+CREATE TABLE IF NOT EXISTS public.family_members (
+  id TEXT PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  management_id TEXT NOT NULL,
+  full_name TEXT NOT NULL,
+  relationship TEXT NOT NULL,
+  date_of_birth DATE,
+  email TEXT,
+  phone TEXT,
+  notes TEXT,
+  is_demo BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 2. Family Documents Table
+CREATE TABLE IF NOT EXISTS public.family_documents (
+  id TEXT PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  family_member_id TEXT NOT NULL REFERENCES public.family_members(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  category TEXT NOT NULL CHECK (category IN (
+    'Identity Proof', 'Address Proof', 'Birth Certificate',
+    'Educational Certificate', 'Income Certificate', 'Other Documents'
+  )),
+  status TEXT NOT NULL DEFAULT 'Not Uploaded' CHECK (status IN (
+    'Not Uploaded', 'Pending Review', 'Verified', 'Needs Attention'
+  )),
+  file_name TEXT,
+  storage_path TEXT,
+  file_size BIGINT,
+  notes TEXT,
+  uploaded_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+#### Security & Tenant Isolation Guarantees:
+
+1. **Row Level Security (RLS)**:
+   - Both `public.family_members` and `public.family_documents` enforce strict user isolation:
+     ```sql
+     CREATE POLICY "Users can manage own family members"
+       ON public.family_members FOR ALL
+       USING (auth.uid() = user_id)
+       WITH CHECK (auth.uid() = user_id);
+     ```
+2. **Private Storage Isolation**:
+   - Files are stored in private paths under `documents/{user_id}/family/{document_id}/{sanitized_file_name}`.
+   - The private bucket's storage policy `(storage.foldername(name))[1] = auth.uid()::text` guarantees that cross-user access attempts fail at the database engine level.
+3. **Signed URLs**:
+   - Files are never made public. Browser previews are served via cryptographically signed URLs valid for 1 hour (`createSignedUrl(storagePath, 3600)`).
+4. **Cascading Deletion**:
+   - Foreign key constraint `ON DELETE CASCADE` ensures that deleting a family member automatically removes all associated document rows, and `FamilyDocumentsService.deleteDocument` cleans up the stored file in Supabase Storage.
+5. **Offline & Demo Fallback**:
+   - `FamilyDocumentsService` maintains a synchronous dual-cache in `localStorage`, guaranteeing full functionality and resilience even when testing without active Supabase credentials.
 
 ---
 
