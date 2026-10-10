@@ -16,8 +16,13 @@ import {
   evaluatePanVerification,
   createUnsupportedDocumentEvaluation,
   VerificationEvaluation,
+  VerificationFieldCheck,
   VERIFICATION_DISCLAIMER,
 } from '../services/documentVerification';
+import {
+  evaluateMultiDocumentUploads,
+  MultiDocVerificationResult,
+} from '../services/sampleRegistry';
 import {
   AlertTriangle,
   CheckCircle,
@@ -35,6 +40,7 @@ import {
   Cpu,
   Save,
   HelpCircle,
+  Eye,
 } from 'lucide-react';
 
 interface VerifyDocumentsProps {
@@ -110,6 +116,9 @@ export const VerifyDocuments: React.FC<VerifyDocumentsProps> = ({
   const [evaluation, setEvaluation] = useState<VerificationEvaluation | null>(null);
   const [primaryPersistedDocId, setPrimaryPersistedDocId] = useState<string | null>(null);
   const [savedUpdateNotice, setSavedUpdateNotice] = useState<boolean>(false);
+
+  // Multi-document pre-submission evaluation result
+  const [multiDocEvaluation, setMultiDocEvaluation] = useState<MultiDocVerificationResult | null>(null);
 
   // Initialize document states when service changes
   useEffect(() => {
@@ -576,14 +585,139 @@ export const VerifyDocuments: React.FC<VerifyDocumentsProps> = ({
     }
   };
 
-  // Run Real OCR Pre-Submission Check
+  // Run Pre-Submission Check
   const handleVerify = async () => {
     setGeneralError(null);
 
     // Check if at least one file has been selected or uploaded
-    const chosenItems = Object.values(documentStates).filter((item) => Boolean(item.file));
+    const chosenItems = service.requiredDocuments
+      .filter((doc) => Boolean(documentStates[doc.id]?.file))
+      .map((doc) => ({
+        docId: doc.id,
+        docDef: doc,
+        file: documentStates[doc.id].file!,
+        previewUrl: documentStates[doc.id].previewUrl,
+        persistedDbId: documentStates[doc.id].persistedDbId,
+        status: documentStates[doc.id].status,
+      }));
+
     if (chosenItems.length === 0) {
       setGeneralError('Please choose or upload at least one document image before running the check.');
+      return;
+    }
+
+    setVerifying(true);
+
+    // 1. Multi-document verification route (e.g. Aadhaar Update & Correction)
+    if (service.id === 'aadhaar-update' || (service.requiredDocuments.length > 1 && chosenItems.length > 1)) {
+      setOcrProgress({
+        stage: 'recognizing',
+        progress: 45,
+        message: 'Validating uploaded documents and cross-checking applicant consistency...',
+      });
+
+      // Mark chosen items as processing
+      setDocumentStates((prev) => {
+        const updated = { ...prev };
+        chosenItems.forEach((item) => {
+          if (updated[item.docId]) {
+            updated[item.docId] = {
+              ...updated[item.docId],
+              status: 'processing',
+            };
+          }
+        });
+        return updated;
+      });
+
+      try {
+        // Upload any selected files to Supabase if authenticated
+        if (user) {
+          setSyncStatus('Uploading documents to encrypted Supabase vault...');
+          for (const item of chosenItems) {
+            if (!item.persistedDbId) {
+              await handleUploadSingleDocument(item.docId);
+            }
+          }
+        }
+
+        const multiResult = await evaluateMultiDocumentUploads(
+          chosenItems,
+          referenceApplicantName.trim() || undefined
+        );
+        setMultiDocEvaluation(multiResult);
+
+        const fieldChecks: VerificationFieldCheck[] = multiResult.items.map((item) => ({
+          fieldName: item.docRequirementName,
+          status:
+            item.status === 'VERIFIED'
+              ? 'PASS'
+              : item.status === 'NAME_MISMATCH'
+              ? 'ERROR'
+              : 'INFO',
+          extractedValue: `${item.detectedDocType}${item.detectedApplicantName ? ` • ${item.detectedApplicantName}` : ''}`,
+          message: item.explanation,
+        }));
+
+        const currentEvaluation: VerificationEvaluation = {
+          serviceId: service.id,
+          overallStatus: multiResult.overallStatus,
+          warningsCount: multiResult.items.filter((i) => i.status === 'UNABLE_TO_VERIFY').length,
+          errorsCount: multiResult.items.filter((i) => i.status === 'NAME_MISMATCH').length,
+          fieldChecks,
+          extractedOcrData: {},
+          isOcrProcessed: false,
+          ocrConfidence: 100,
+          disclaimer: VERIFICATION_DISCLAIMER,
+        };
+        setEvaluation(currentEvaluation);
+
+        // Mark all chosen items as ready_for_review
+        setDocumentStates((prev) => {
+          const updated = { ...prev };
+          chosenItems.forEach((item) => {
+            if (updated[item.docId]) {
+              updated[item.docId] = {
+                ...updated[item.docId],
+                status: 'ready_for_review',
+              };
+            }
+          });
+          return updated;
+        });
+
+        // Upsert user application record in Supabase
+        if (user) {
+          try {
+            const appId = `APP-${service.id.toUpperCase().slice(0, 4)}-${user.id.slice(0, 4).toUpperCase()}`;
+            const appStatus =
+              currentEvaluation.overallStatus === 'PASS' ? 'In Progress' : 'Action Required';
+
+            await supabase.from('applications').upsert({
+              id: appId,
+              user_id: user.id,
+              service_id: service.id,
+              service_name: service.name,
+              applicant_name: referenceApplicantName || user.user_metadata?.full_name || 'Citizen',
+              status: appStatus,
+              current_step_index: 1,
+              last_updated: 'Today',
+              updated_at: new Date().toISOString(),
+            });
+          } catch (appErr) {
+            console.warn('Application record upsert warning:', appErr);
+          }
+        }
+
+        setIsVerified(true);
+      } catch (err: any) {
+        console.warn('Multi-document verification error:', err);
+        setGeneralError(err.message || 'An error occurred during verification.');
+      } finally {
+        setVerifying(false);
+        setOcrProgress(null);
+        setSyncStatus(null);
+      }
       return;
     }
 
@@ -606,11 +740,11 @@ export const VerifyDocuments: React.FC<VerifyDocumentsProps> = ({
       const validation = validateOcrFile(targetFile);
       if (!validation.valid) {
         setGeneralError(validation.error || 'The uploaded file is not supported for OCR.');
+        setVerifying(false);
         return;
       }
     }
 
-    setVerifying(true);
     setOcrProgress({
       stage: 'loading',
       progress: 5,
@@ -872,6 +1006,7 @@ export const VerifyDocuments: React.FC<VerifyDocumentsProps> = ({
 
       {!isVerified ? (
         <div className="space-y-6">
+
           {/* Quick Demo Test Bar (PAN verification only) */}
           {(service.id === 'pan-correction' ||
             service.requiredDocuments.some((d) => d.id === 'doc-pan' || d.name.toLowerCase().includes('pan'))) && (
@@ -1057,22 +1192,160 @@ export const VerifyDocuments: React.FC<VerifyDocumentsProps> = ({
                     </span>
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    {evaluation?.overallStatus === 'NEEDS_REVIEW'
+                    {multiDocEvaluation
+                      ? multiDocEvaluation.summaryMessage
+                      : evaluation?.overallStatus === 'NEEDS_REVIEW'
                       ? 'Automated OCR field extraction is calibrated for PAN cards. Document securely vaulted for physical verification.'
                       : `${evaluation?.warningsCount} warning(s), ${evaluation?.errorsCount} error(s) flagged`}
                   </p>
                 </div>
               </div>
 
-              {candidateData && (
+              {multiDocEvaluation ? (
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <span
+                    className={`text-xs font-bold font-mono px-3 py-1 rounded-xl border ${
+                      multiDocEvaluation.overallStatus === 'PASS'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                        : 'bg-rose-50 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                    }`}
+                  >
+                    {multiDocEvaluation.matchedCount}/{multiDocEvaluation.totalCount} Documents Matched
+                  </span>
+                </div>
+              ) : candidateData ? (
                 <div className="flex items-center gap-2 self-start sm:self-auto">
                   <span className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900 flex items-center gap-1.5">
                     <Cpu className="w-3.5 h-3.5" />
                     <span>OCR Confidence: {candidateData.ocrConfidence}%</span>
                   </span>
                 </div>
-              )}
+              ) : null}
             </div>
+
+            {/* Verified Supporting Documents Breakdown (Multi-document services) */}
+            {multiDocEvaluation && (
+              <div className="space-y-3 pt-2">
+                <h4 className="font-bold text-xs uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Verified Supporting Documents
+                </h4>
+                <div className="space-y-3">
+                  {multiDocEvaluation.items.map((item) => (
+                    <div
+                      key={item.docId}
+                      className={`p-4 sm:p-4.5 rounded-2xl border transition-all ${
+                        item.status === 'VERIFIED'
+                          ? 'bg-slate-50 dark:bg-zinc-950 border-slate-200 dark:border-zinc-800'
+                          : item.status === 'NAME_MISMATCH'
+                          ? 'bg-rose-50/50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900'
+                          : 'bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900'
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          {item.previewUrl && (
+                            <div
+                              onClick={() =>
+                                setPreviewModal({
+                                  isOpen: true,
+                                  title: item.docRequirementName,
+                                  fileName: item.fileName,
+                                  previewUrl: item.previewUrl,
+                                  mimeType: 'image/jpeg',
+                                })
+                              }
+                              className="group relative w-14 h-14 sm:w-16 sm:h-16 shrink-0 rounded-xl overflow-hidden bg-white dark:bg-black border border-slate-200 dark:border-zinc-800 cursor-pointer shadow-xs"
+                              title="Click to view full preview"
+                            >
+                              <img
+                                src={item.previewUrl}
+                                alt={item.fileName}
+                                className="w-full h-full object-cover group-hover:scale-105 transition"
+                              />
+                              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white">
+                                <Eye className="w-4 h-4 drop-shadow" />
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h5 className="font-bold text-sm text-slate-900 dark:text-white">
+                                {item.docRequirementName}
+                              </h5>
+                              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                                ({item.detectedDocType})
+                              </span>
+                            </div>
+
+                            <p className="text-xs font-mono text-slate-500 dark:text-slate-400 truncate">
+                              File: {item.fileName}
+                            </p>
+
+                            {item.detectedApplicantName && (
+                              <div className="flex items-center gap-3 text-xs pt-0.5 flex-wrap">
+                                <span className="text-slate-400">Name on Document:</span>
+                                <span
+                                  className={`font-semibold ${
+                                    item.status === 'NAME_MISMATCH'
+                                      ? 'text-rose-700 dark:text-rose-300 font-bold underline'
+                                      : 'text-slate-800 dark:text-slate-200'
+                                  }`}
+                                >
+                                  {item.detectedApplicantName}
+                                </span>
+                                <span className="text-slate-400">• Applicant Profile:</span>
+                                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                                  {multiDocEvaluation.applicantProfileName}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex sm:flex-col items-start sm:items-end justify-between sm:justify-center gap-1.5 shrink-0 sm:max-w-xs">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                              item.status === 'VERIFIED'
+                                ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                : item.status === 'NAME_MISMATCH'
+                                ? 'bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800'
+                                : 'bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                            }`}
+                          >
+                            {item.status === 'VERIFIED' ? (
+                              <>
+                                <CheckCircle className="w-3.5 h-3.5" />
+                                <span>Verified</span>
+                              </>
+                            ) : item.status === 'NAME_MISMATCH' ? (
+                              <>
+                                <AlertCircle className="w-3.5 h-3.5" />
+                                <span>Name mismatch</span>
+                              </>
+                            ) : (
+                              <>
+                                <Info className="w-3.5 h-3.5" />
+                                <span>Unable to verify</span>
+                              </>
+                            )}
+                          </span>
+                          <p
+                            className={`text-xs sm:text-right leading-relaxed ${
+                              item.status === 'NAME_MISMATCH'
+                                ? 'text-rose-700 dark:text-rose-300 font-medium'
+                                : 'text-slate-500 dark:text-slate-400'
+                            }`}
+                          >
+                            {item.explanation}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Candidate Review Form (for PAN) or Vault Notice (for other documents) */}
             {candidateData ? (
@@ -1286,11 +1559,12 @@ export const VerifyDocuments: React.FC<VerifyDocumentsProps> = ({
                     setIsVerified(false);
                     setCandidateData(null);
                     setEvaluation(null);
+                    setMultiDocEvaluation(null);
                   }}
                   className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-slate-800 dark:text-slate-200 font-semibold px-4 py-2.5 rounded-xl text-xs border border-transparent dark:border-zinc-800 transition cursor-pointer"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Check Another Document</span>
+                  <span>Check Another Document / Re-upload</span>
                 </button>
               </div>
 

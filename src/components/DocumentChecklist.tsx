@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { DocumentRequirement } from '../types';
 import {
   Check,
@@ -7,7 +7,8 @@ import {
   RotateCcw,
   CheckCheck,
   AlertCircle,
-  HelpCircle,
+  Info,
+  FileText,
 } from 'lucide-react';
 
 interface DocumentChecklistProps {
@@ -36,7 +37,7 @@ export const DocumentChecklist: React.FC<DocumentChecklistProps> = ({
       {/* Quick utility actions */}
       <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
         <span className="font-medium">
-          Click any row to toggle document readiness
+          Click any row to toggle document readiness • Hover row or tap <Info className="w-3 h-3 inline mx-0.5 text-slate-400" /> for accepted documents
         </span>
         <div className="flex items-center gap-3">
           <button
@@ -158,6 +159,27 @@ interface ChecklistRowProps {
 }
 
 const ChecklistRow: React.FC<ChecklistRowProps> = ({ doc, isChecked, onToggle }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
+
+  const hasExamples = Boolean(doc.acceptedExamples && doc.acceptedExamples.length > 0);
+  const hasDetails = hasExamples || Boolean(doc.conditionNote) || Boolean(doc.description);
+
+  // Close info tooltip on outside click for touch devices
+  useEffect(() => {
+    if (!isInfoOpen) return;
+    const handleOutsideClick = () => {
+      setIsInfoOpen(false);
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => {
+      document.removeEventListener('click', handleOutsideClick);
+    };
+  }, [isInfoOpen]);
+
+  // Tooltip only shows when document is unchecked and hovered or tapped
+  const showTooltip = !isChecked && (isHovered || isInfoOpen) && hasDetails;
+
   return (
     <div
       role="checkbox"
@@ -170,17 +192,22 @@ const ChecklistRow: React.FC<ChecklistRowProps> = ({ doc, isChecked, onToggle })
           onToggle();
         }
       }}
-      className={`group relative w-full rounded-2xl border p-4 sm:p-5 flex items-start justify-between gap-3.5 sm:gap-4 transition-all duration-150 cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-black ${
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => {
+        setIsHovered(false);
+        setIsInfoOpen(false);
+      }}
+      className={`group relative w-full rounded-2xl border p-3.5 sm:p-4 flex items-center justify-between gap-3.5 sm:gap-4 transition-all duration-150 cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-black ${
         isChecked
           ? 'bg-white dark:bg-black border-emerald-200 dark:border-emerald-900/70 hover:border-emerald-300 dark:hover:border-emerald-800 shadow-xs'
           : 'bg-white dark:bg-black border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-xs'
       }`}
     >
-      {/* Left Checkbox Icon & Document Details */}
-      <div className="flex items-start gap-3.5 sm:gap-4 flex-1 min-w-0">
+      {/* Left Checkbox Icon & Document Title/Badges */}
+      <div className="flex items-center gap-3.5 sm:gap-4 flex-1 min-w-0">
         {/* Checkbox box */}
         <div
-          className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 transition-colors duration-150 ${
+          className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-150 ${
             isChecked
               ? 'bg-emerald-600 dark:bg-emerald-500 text-white shadow-xs'
               : 'border-2 border-slate-300 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 group-hover:border-blue-500 dark:group-hover:border-blue-400'
@@ -190,60 +217,65 @@ const ChecklistRow: React.FC<ChecklistRowProps> = ({ doc, isChecked, onToggle })
           {isChecked && <Check className="w-4 h-4 stroke-[3]" />}
         </div>
 
-        {/* Text information */}
-        <div className="flex-1 min-w-0 space-y-1.5">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h4
-              className={`font-semibold text-sm sm:text-base leading-snug transition-colors ${
-                isChecked
-                  ? 'text-slate-900 dark:text-white'
-                  : 'text-slate-800 dark:text-slate-100 group-hover:text-blue-700 dark:group-hover:text-blue-400'
-              }`}
-            >
-              {doc.name}
-            </h4>
+        {/* Text information: Title + Badges only (Zero permanent descriptions) */}
+        <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
+          <h4
+            className={`font-semibold text-sm sm:text-base leading-snug transition-colors ${
+              isChecked
+                ? 'text-slate-900 dark:text-white'
+                : 'text-slate-800 dark:text-slate-100 group-hover:text-blue-700 dark:group-hover:text-blue-400'
+            }`}
+          >
+            {doc.name}
+          </h4>
 
-            {/* Required vs Conditional vs Optional tag */}
-            {doc.isConditional ? (
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 flex items-center gap-1">
-                <AlertCircle className="w-2.5 h-2.5" />
-                <span>Conditional</span>
-              </span>
-            ) : doc.required ? (
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-900">
-                Required
-              </span>
-            ) : (
-              <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-zinc-700">
-                Optional
-              </span>
-            )}
-          </div>
-
-          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-            {doc.description}
-          </p>
-
-          {/* Conditional Note if present */}
-          {doc.conditionNote && (
-            <div className="text-[11px] text-amber-800 dark:text-amber-300 bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200/70 dark:border-amber-900/50 rounded-lg px-2.5 py-1.5 flex items-start gap-1.5">
-              <HelpCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
-              <span>{doc.conditionNote}</span>
-            </div>
+          {/* Required vs Conditional vs Optional tag */}
+          {doc.isConditional ? (
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 flex items-center gap-1 shrink-0">
+              <AlertCircle className="w-2.5 h-2.5" />
+              <span>Conditional</span>
+            </span>
+          ) : doc.required ? (
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-900 shrink-0">
+              Required
+            </span>
+          ) : (
+            <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-zinc-700 shrink-0">
+              Optional
+            </span>
           )}
 
-          {/* Accepted Examples */}
-          {doc.acceptedExamples && doc.acceptedExamples.length > 0 && (
-            <div className="text-[11px] text-slate-500 dark:text-slate-400 pt-0.5">
-              <span className="font-semibold text-slate-700 dark:text-slate-300">Accepted examples: </span>
-              <span>{doc.acceptedExamples.join(', ')}</span>
-            </div>
+          {/* Info trigger button for touch and keyboard users */}
+          {!isChecked && hasDetails && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsInfoOpen((prev) => !prev);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === ' ' || e.key === 'Enter') {
+                  e.stopPropagation();
+                  setIsInfoOpen((prev) => !prev);
+                }
+              }}
+              onFocus={() => setIsHovered(true)}
+              onBlur={() => {
+                setIsHovered(false);
+                setIsInfoOpen(false);
+              }}
+              aria-label={`View accepted examples for ${doc.name}`}
+              title="View accepted document examples"
+              className="p-1 rounded-full text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 cursor-pointer shrink-0"
+            >
+              <Info className="w-3.5 h-3.5" />
+            </button>
           )}
         </div>
       </div>
 
       {/* Right Status Pill */}
-      <div className="shrink-0 flex items-center mt-0.5">
+      <div className="shrink-0 flex items-center">
         {isChecked ? (
           <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -264,6 +296,35 @@ const ChecklistRow: React.FC<ChecklistRowProps> = ({ doc, isChecked, onToggle })
           </span>
         )}
       </div>
+
+      {/* Hover & Tap Tooltip for Unchecked Items */}
+      {showTooltip && (
+        <div
+          role="tooltip"
+          className="absolute left-10 sm:left-14 top-full mt-1.5 z-50 max-w-sm sm:max-w-md w-max max-w-[calc(100vw-4rem)] p-3 rounded-xl bg-slate-900 text-white dark:bg-zinc-900 dark:text-zinc-100 dark:border dark:border-zinc-800 shadow-xl text-xs space-y-1.5 animate-in fade-in zoom-in-95 duration-150 pointer-events-none"
+        >
+          <div className="flex items-center gap-1.5 font-bold text-[11px] text-blue-300 dark:text-blue-400 uppercase tracking-wider">
+            <FileText className="w-3 h-3 shrink-0" />
+            <span>Accepted Documents</span>
+          </div>
+
+          {hasExamples ? (
+            <p className="text-slate-200 dark:text-slate-300 text-xs leading-relaxed">
+              {doc.acceptedExamples!.join(', ')}
+            </p>
+          ) : (
+            <p className="text-slate-200 dark:text-slate-300 text-xs leading-relaxed">
+              {doc.description}
+            </p>
+          )}
+
+          {doc.conditionNote && (
+            <p className="text-[11px] text-amber-300/90 dark:text-amber-400/90 pt-1 border-t border-slate-800 dark:border-zinc-800 leading-tight">
+              <span className="font-semibold">Condition:</span> {doc.conditionNote}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 };
