@@ -109,7 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!isConfigured) {
       return {
         error: new Error(
-          'Supabase credentials are not configured in .env. Please configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.'
+          'Supabase credentials are not configured in .env. Please configure SUPABASE_URL and SUPABASE_ANON_KEY.'
         ),
       };
     }
@@ -134,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!isConfigured) {
       return {
         error: new Error(
-          'Supabase credentials are not configured in .env. Please configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.'
+          'Supabase credentials are not configured in .env. Please configure SUPABASE_URL and SUPABASE_ANON_KEY.'
         ),
         user: null,
       };

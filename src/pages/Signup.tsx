@@ -63,7 +63,7 @@ export const Signup: React.FC = () => {
       } else if (msg.includes('weak') || msg.includes('short')) {
         setError('Please choose a stronger password.');
       } else if (msg.includes('credentials are not configured')) {
-        setError('Supabase is not configured yet. Please configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.');
+        setError('Supabase is not configured yet. Please configure SUPABASE_URL and SUPABASE_ANON_KEY in your .env file.');
       } else {
         setError(signUpError.message || 'Unable to create account. Please try again.');
       }

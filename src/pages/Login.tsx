@@ -48,7 +48,7 @@ export const Login: React.FC = () => {
       } else if (msg.includes('rate limit')) {
         setError('Too many login attempts. Please wait a moment and try again.');
       } else if (msg.includes('credentials are not configured')) {
-        setError('Supabase is not configured yet. Please configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.');
+        setError('Supabase is not configured yet. Please configure SUPABASE_URL and SUPABASE_ANON_KEY in your .env file.');
       } else {
         setError('Unable to sign in. Please verify your credentials and try again.');
       }
