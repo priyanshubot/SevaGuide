@@ -86,3 +86,29 @@ html.reduce-motion *::after {
   outline-offset: 3px;
   border-color: #2563eb;
 }
+
+/* Color Vision Deficiency Modes */
+html.cb-protanopia {
+  filter: url('#protanopia-filter');
+}
+
+html.cb-deuteranopia {
+  filter: url('#deuteranopia-filter');
+}
+
+html.cb-tritanopia {
+  filter: url('#tritanopia-filter');
+}
+
+html.cb-high-contrast {
+  filter: contrast(135%) saturate(120%);
+}
+
+/* High contrast mode element contrast enhancements */
+html.cb-high-contrast button,
+html.cb-high-contrast a,
+html.cb-high-contrast input,
+html.cb-high-contrast select,
+html.cb-high-contrast textarea {
+  outline-offset: 2px;
+}
